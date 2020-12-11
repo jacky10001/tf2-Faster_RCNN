@@ -19,7 +19,7 @@ from frcnn.model import log
 from shapes import ShapesConfig
 from shapes import ShapesDataset
 
-MODEL_DIR = 'log_frcnn'
+MODEL_DIR = 'log_shapes'
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
