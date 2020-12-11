@@ -87,7 +87,7 @@ elif init_with == "coco":
     # See README for instructions to download the COCO weights
     model.load_weights(COCO_MODEL_PATH, by_name=True,
                        exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
-                                "mrcnn_bbox"])
+                                "mrcnn_bbox","mrcnn_mask"])
 elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
