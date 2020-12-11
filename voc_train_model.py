@@ -50,7 +50,7 @@ def get_ax(rows=1, cols=1, size=6):
 dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
 
 # Training dataset
-dataset_train = VocDataset()
+dataset_train = VocDataset()  # TODO: Check data problem
 dataset_train.load_voc(dataset_dir, "train")
 dataset_train.prepare()
 
@@ -61,6 +61,7 @@ dataset_val.prepare()
 
 
 #%% Load and display random samples
+  # TODO: Check data problem
 image_ids = np.random.choice(dataset_train.image_ids, 1)
 for image_id in image_ids:
     image = dataset_train.load_image(image_id)
@@ -108,7 +109,7 @@ elif init_with == "last":
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=2, 
+            epochs=20, 
             layers='heads')
 
 
@@ -119,7 +120,7 @@ model.train(dataset_train, dataset_val,
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=2, 
+            epochs=30, 
             layers="all")
 
 
@@ -127,8 +128,8 @@ model.train(dataset_train, dataset_val,
 # Typically not needed because callbacks save after every epoch
 # Uncomment to save manually
 
-model_path = os.path.join(MODEL_DIR, "faster_rcnn.h5")
-model.keras_model.save_weights(model_path)
+# model_path = os.path.join(MODEL_DIR, "faster_rcnn.h5")
+# model.keras_model.save_weights(model_path)
 
 
 #%% Detection
@@ -171,6 +172,7 @@ visualize.display_instances(original_image, gt_bbox, gt_class_id,
 
 
 #%%
+# TODO: Check data problem, predict bbox is error
 results = model.detect([original_image], verbose=1)
 
 r = results[0]
