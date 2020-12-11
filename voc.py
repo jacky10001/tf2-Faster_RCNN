@@ -103,6 +103,11 @@ class VocConfig(Config):
     # Adjust down if you use a smaller GPU.
     IMAGES_PER_GPU = 2
 
+    # Use small images for faster training. Set the limits of the small side
+    # the large side, and that determines the image shape.
+    IMAGE_MIN_DIM = 320
+    IMAGE_MAX_DIM = 320
+
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
 

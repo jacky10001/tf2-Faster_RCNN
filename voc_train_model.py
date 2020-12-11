@@ -1,6 +1,26 @@
 # -*- coding: utf-8 -*-
 """
 
+已完成工作
+* 移除 mask 功能
+* 替換原本輸入 mask  改讀取 bbox
+* 原本 Shapes 程式  可以完整執行
+
+程式測試紀錄
+* 訓練 all 失敗  
+    1. 錯誤訊息
+    TypeError: in converted code:
+    
+        D:\YJ\MyRepo\Faster_RCNN-tf2\frcnn\model.py:766 call  *
+            window = norm_boxes_graph(m['window'], image_shape[:2])
+    
+        TypeError: tf__norm_boxes_graph() missing 1 required positional argument: 'num_rows'
+    2. GPU不足的情形發生= = (GTX1060 6GB)
+
+未來工作
+* 比較 voc 與 coco 差異，嘗試使用原來大小訓練
+* 改變 backbone 移除 fpn 減少 head 權重數量
+
 @author: Jacky Gao
 @date: Fri Dec 11 21:47:40 2020
 """
@@ -38,7 +58,7 @@ def get_ax(rows=1, cols=1, size=6):
     """Return a Matplotlib Axes array to be used in
     all visualizations in the notebook. Provide a
     central point to control graph sizes.
-    
+     
     Change the default size attribute to control the size
     of rendered images
     """
@@ -87,7 +107,7 @@ if init_with == "imagenet":
 elif init_with == "coco":
     model.load_weights(COCO_MODEL_PATH, by_name=True,
                        exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
-                                "mrcnn_bbox"])
+                                "mrcnn_bbox","mrcnn_mask"])
 elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
@@ -109,7 +129,7 @@ elif init_with == "last":
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=20, 
+            epochs=10, 
             layers='heads')
 
 
@@ -120,7 +140,7 @@ model.train(dataset_train, dataset_val,
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=30, 
+            epochs=10, 
             layers="all")
 
 
