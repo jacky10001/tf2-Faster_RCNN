@@ -69,7 +69,9 @@ for image_id in image_ids:
 # Create model in training mode
 model = modellib.MaskRCNN(mode="training", config=config,
                           model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_training.png', show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model,
+                          to_file=os.path.join(LOG_ROOT,'archi_training.png'),
+                          show_shapes=True)
 
 
 #%% Which weights to start with?
@@ -139,7 +141,9 @@ inference_config = InferenceConfig()
 model = modellib.MaskRCNN(mode="inference", 
                           config=inference_config,
                           model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model,
+                          to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
+                          show_shapes=True)
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights

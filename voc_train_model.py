@@ -19,7 +19,8 @@ from frcnn.model import log
 from voc import VocConfig
 from voc import VocDataset
 
-MODEL_DIR = 'log_frcnn_voc'
+LOG_ROOT = 'log_voc'
+MODEL_DIR = os.path.join(LOG_ROOT,'weights')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
@@ -71,7 +72,9 @@ for image_id in image_ids:
 # Create model in training mode
 model = modellib.MaskRCNN(mode="training", config=config,
                           model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_training.png', show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model,
+                          to_file=os.path.join(LOG_ROOT,'archi_training.png'),
+                          show_shapes=True)
 
 
 #%% Which weights to start with?
@@ -126,7 +129,7 @@ model.train(dataset_train, dataset_val,
 # Typically not needed because callbacks save after every epoch
 # Uncomment to save manually
 
-model_path = os.path.join(MODEL_DIR, "faster_rcnn_shapes.h5")
+model_path = os.path.join(MODEL_DIR, "faster_rcnn.h5")
 model.keras_model.save_weights(model_path)
 
 
@@ -141,7 +144,9 @@ inference_config = InferenceConfig()
 model = modellib.MaskRCNN(mode="inference", 
                           config=inference_config,
                           model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model,
+                          to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
+                          show_shapes=True)
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights
