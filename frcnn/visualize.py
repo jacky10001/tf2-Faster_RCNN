@@ -20,12 +20,32 @@ from matplotlib import patches,  lines
 from matplotlib.patches import Polygon
 import IPython.display
 
-from mrcnn import utils
+# Import Mask RCNN
+from . import utils
 
 
 ############################################################
 #  Visualization
 ############################################################
+
+def display_image(image, title=None, cmap=None, norm=None,
+                  interpolation=None):
+    """Display the given set of images, optionally with titles.
+    images: list or array of image tensors in HWC format.
+    titles: optional. A list of titles to display with each image.
+    cols: number of images per row
+    cmap: Optional. Color map to use. For example, "Blues".
+    norm: Optional. A Normalize instance to map values to colors.
+    interpolation: Optional. Image interpolation to use for display.
+    """
+    title = title if title is not None else ""
+    plt.figure(figsize=(4, 4))
+    
+    plt.title(title, fontsize=9)
+    plt.axis('off')
+    plt.imshow(image.astype(np.uint8), cmap=cmap,
+               norm=norm, interpolation=interpolation)
+    plt.show()
 
 def display_images(images, titles=None, cols=4, cmap=None, norm=None,
                    interpolation=None):
@@ -75,14 +95,13 @@ def apply_mask(image, mask, color, alpha=0.5):
     return image
 
 
-def display_instances(image, boxes, masks, class_ids, class_names,
+def display_instances(image, boxes, class_ids, class_names,
                       scores=None, title="",
                       figsize=(16, 16), ax=None,
                       show_mask=True, show_bbox=True,
                       colors=None, captions=None):
     """
     boxes: [num_instance, (y1, x1, y2, x2, class_id)] in image coordinates.
-    masks: [height, width, num_instances]
     class_ids: [num_instances]
     class_names: list of class names of the dataset
     scores: (optional) confidence scores for each box
@@ -97,13 +116,11 @@ def display_instances(image, boxes, masks, class_ids, class_names,
     if not N:
         print("\n*** No instances to display *** \n")
     else:
-        assert boxes.shape[0] == masks.shape[-1] == class_ids.shape[0]
+        assert boxes.shape[0] == class_ids.shape[0]
 
     # If no axis is passed, create one and automatically call show()
-    auto_show = False
     if not ax:
         _, ax = plt.subplots(1, figsize=figsize)
-        auto_show = True
 
     # Generate random colors
     colors = colors or random_colors(N)
@@ -140,30 +157,13 @@ def display_instances(image, boxes, masks, class_ids, class_names,
             caption = captions[i]
         ax.text(x1, y1 + 8, caption,
                 color='w', size=11, backgroundcolor="none")
-
-        # Mask
-        mask = masks[:, :, i]
-        if show_mask:
-            masked_image = apply_mask(masked_image, mask, color)
-
-        # Mask Polygon
-        # Pad to ensure proper polygons for masks that touch image edges.
-        padded_mask = np.zeros(
-            (mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
-        padded_mask[1:-1, 1:-1] = mask
-        contours = find_contours(padded_mask, 0.5)
-        for verts in contours:
-            # Subtract the padding and flip (y, x) to (x, y)
-            verts = np.fliplr(verts) - 1
-            p = Polygon(verts, facecolor="none", edgecolor=color)
-            ax.add_patch(p)
+    
     ax.imshow(masked_image.astype(np.uint8))
-    if auto_show:
-        plt.show()
+    plt.show()
 
 
 def display_differences(image,
-                        gt_box, gt_class_id, gt_mask,
+                        gt_box, gt_class_id,
                         pred_box, pred_class_id, pred_score, pred_mask,
                         class_names, title="", ax=None,
                         show_mask=True, show_box=True,
@@ -171,7 +171,7 @@ def display_differences(image,
     """Display ground truth and prediction instances on the same image."""
     # Match predictions to ground truth
     gt_match, pred_match, overlaps = utils.compute_matches(
-        gt_box, gt_class_id, gt_mask,
+        gt_box, gt_class_id,
         pred_box, pred_class_id, pred_score, pred_mask,
         iou_threshold=iou_threshold, score_threshold=score_threshold)
     # Ground truth = green. Predictions = red
@@ -181,7 +181,6 @@ def display_differences(image,
     class_ids = np.concatenate([gt_class_id, pred_class_id])
     scores = np.concatenate([np.zeros([len(gt_match)]), pred_score])
     boxes = np.concatenate([gt_box, pred_box])
-    masks = np.concatenate([gt_mask, pred_mask], axis=-1)
     # Captions per instance show score/IoU
     captions = ["" for m in gt_match] + ["{:.2f} / {:.2f}".format(
         pred_score[i],
@@ -193,14 +192,14 @@ def display_differences(image,
     # Display
     display_instances(
         image,
-        boxes, masks, class_ids,
+        boxes, class_ids,
         class_names, scores, ax=ax,
         show_bbox=show_box, show_mask=show_mask,
         colors=colors, captions=captions,
         title=title)
 
 
-def draw_rois(image, rois, refined_rois, mask, class_ids, class_names, limit=10):
+def draw_rois(image, rois, refined_rois, class_ids, class_names, limit=10):
     """
     anchors: [n, (y1, x1, y2, x2)] list of anchors in image coordinates.
     proposals: [n, 4] the same anchors but refined to fit objects better.
@@ -247,11 +246,6 @@ def draw_rois(image, rois, refined_rois, mask, class_ids, class_names, limit=10)
             ax.text(rx1, ry1 + 8, "{}".format(label),
                     color='w', size=11, backgroundcolor="none")
 
-            # Mask
-            m = utils.unmold_mask(mask[id], rois[id]
-                                  [:4].astype(np.int32), image.shape)
-            masked_image = apply_mask(masked_image, m, color)
-
     ax.imshow(masked_image)
 
     # Print stats
@@ -271,29 +265,6 @@ def draw_box(image, box, color):
     image[y1:y2, x1:x1 + 2] = color
     image[y1:y2, x2:x2 + 2] = color
     return image
-
-
-def display_top_masks(image, mask, class_ids, class_names, limit=4):
-    """Display the given image and the top few class masks."""
-    to_display = []
-    titles = []
-    to_display.append(image)
-    titles.append("H x W={}x{}".format(image.shape[0], image.shape[1]))
-    # Pick top prominent classes in this image
-    unique_class_ids = np.unique(class_ids)
-    mask_area = [np.sum(mask[:, :, np.where(class_ids == i)[0]])
-                 for i in unique_class_ids]
-    top_ids = [v[0] for v in sorted(zip(unique_class_ids, mask_area),
-                                    key=lambda r: r[1], reverse=True) if v[1] > 0]
-    # Generate images and titles
-    for i in range(limit):
-        class_id = top_ids[i] if i < len(top_ids) else -1
-        # Pull masks of instances belonging to the same class.
-        m = mask[:, :, np.where(class_ids == class_id)[0]]
-        m = np.sum(m * np.arange(1, m.shape[-1] + 1), -1)
-        to_display.append(m)
-        titles.append(class_names[class_id] if class_id != -1 else "-")
-    display_images(to_display, titles=titles, cols=limit + 1, cmap="Blues_r")
 
 
 def plot_precision_recall(AP, precisions, recalls):
@@ -351,7 +322,7 @@ def plot_overlaps(gt_class_ids, pred_class_ids, pred_scores,
 
 
 def draw_boxes(image, boxes=None, refined_boxes=None,
-               masks=None, captions=None, visibilities=None,
+               captions=None, visibilities=None,
                title="", ax=None):
     """Draw bounding boxes and segmentation masks with different
     customizations.
@@ -359,7 +330,6 @@ def draw_boxes(image, boxes=None, refined_boxes=None,
     boxes: [N, (y1, x1, y2, x2, class_id)] in image coordinates.
     refined_boxes: Like boxes, but draw with solid lines to show
         that they're the result of refining 'boxes'.
-    masks: [N, height, width]
     captions: List of N titles to display on each box
     visibilities: (optional) List of values of 0, 1, or 2. Determine how
         prominent each bounding box should be.
@@ -433,22 +403,6 @@ def draw_boxes(image, boxes=None, refined_boxes=None,
                     color='w', backgroundcolor="none",
                     bbox={'facecolor': color, 'alpha': 0.5,
                           'pad': 2, 'edgecolor': 'none'})
-
-        # Masks
-        if masks is not None:
-            mask = masks[:, :, i]
-            masked_image = apply_mask(masked_image, mask, color)
-            # Mask Polygon
-            # Pad to ensure proper polygons for masks that touch image edges.
-            padded_mask = np.zeros(
-                (mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
-            padded_mask[1:-1, 1:-1] = mask
-            contours = find_contours(padded_mask, 0.5)
-            for verts in contours:
-                # Subtract the padding and flip (y, x) to (x, y)
-                verts = np.fliplr(verts) - 1
-                p = Polygon(verts, facecolor="none", edgecolor=color)
-                ax.add_patch(p)
     ax.imshow(masked_image.astype(np.uint8))
 
 
@@ -464,44 +418,9 @@ def display_table(table):
         html += "<tr>" + row_html + "</tr>"
     html = "<table>" + html + "</table>"
     IPython.display.display(IPython.display.HTML(html))
-    return html
 
 
-def print_table(table):
-    """Print values in a table format.
-    table: an iterable of rows, and each row is an iterable of values.
-    """
-    
-    skip_split = '*******************************************************'
-    skip_info1 = 'Skip print'
-    skip_info2 = 'if you want to see all info, ' \
-                 'please check saved file.' 
-    
-    table_str = ""
-    print_skip_min = 50
-    print_skip_mid = len(table)//2
-    print_skip_max = len(table)-50
-    for c, row in enumerate(table):
-        str_col = ""
-        for i, col in enumerate(row):
-            if i == 0: str_col += "{:<44}".format(col)
-            elif i == 1: str_col += "{:^20}".format(col)
-            elif i == 2: str_col += "{:^14}".format(col)
-            elif i == 3: str_col += "{:^14}".format(col)
-            elif i == 4: str_col += "{:^14}\n".format(col)
-        if (c < print_skip_min or
-            c > print_skip_max):
-            print(str_col, end='')
-        elif c == print_skip_mid:
-            print("\n\n{:^106}".format(skip_split))
-            print("{:^106}".format(skip_info1))
-            print("{:^106}".format(skip_info2))
-            print("{:^106}\n\n".format(skip_split))
-        table_str += str_col
-    return table_str
-
-
-def display_weight_stats(model, html=False, save=False, save_path='inspect_weights.%s'):
+def display_weight_stats(model):
     """Scans all the weights in the model and returns a list of tuples
     that contain stats about each weight.
     """
@@ -512,21 +431,12 @@ def display_weight_stats(model, html=False, save=False, save_path='inspect_weigh
         weight_tensors = l.weights  # list of TF tensors
         for i, w in enumerate(weight_values):
             weight_name = weight_tensors[i].name
-            
             # Detect problematic layers. Exclude biases of conv layers.
-            if html:
-                alert = ""
-                if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
-                    alert += "<span style='color:red'> *dead?</span>"
-                if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
-                    alert += "<span style='color:red'> *Overflow?</span>"
-            else:
-                alert = ""
-                if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
-                    alert += " *dead?"
-                if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
-                    alert += " *Overflow?"
-            
+            alert = ""
+            if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
+                alert += "<span style='color:red'>*** dead?</span>"
+            if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
+                alert += "<span style='color:red'>*** Overflow?</span>"
             # Add row
             table.append([
                 weight_name + alert,
@@ -535,13 +445,4 @@ def display_weight_stats(model, html=False, save=False, save_path='inspect_weigh
                 "{:+10.4f}".format(w.max()),
                 "{:+9.4f}".format(w.std()),
             ])
-    
-    if html:
-        raw_file = display_table(table)
-        ext = '.html'
-    else: 
-        raw_file = print_table(table)
-        ext = '.txt'
-    
-    with open(save_path%ext,'w') as f:
-        f.write(raw_file)
+    display_table(table)

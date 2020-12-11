@@ -98,11 +98,6 @@ class Config(object):
     POST_NMS_ROIS_TRAINING = 2000
     POST_NMS_ROIS_INFERENCE = 1000
 
-    # If enabled, resizes instance masks to a smaller size to reduce
-    # memory load. Recommended when using high-resolution images.
-    USE_MINI_MASK = True
-    MINI_MASK_SHAPE = (56, 56)  # (height, width) of the mini-mask
-
     # Input image resizing
     # Generally, use the "square" resizing mode for training and predicting
     # and it should work well in most cases. In this mode, images are scaled
@@ -151,11 +146,6 @@ class Config(object):
 
     # Pooled ROIs
     POOL_SIZE = 7
-    MASK_POOL_SIZE = 14
-
-    # Shape of output mask
-    # To change this you also need to change the neural network mask branch
-    MASK_SHAPE = [28, 28]
 
     # Maximum number of ground truth instances to use in one image
     MAX_GT_INSTANCES = 100
@@ -191,7 +181,6 @@ class Config(object):
         "rpn_bbox_loss": 1.,
         "mrcnn_class_loss": 1.,
         "mrcnn_bbox_loss": 1.,
-        "mrcnn_mask_loss": 1.
     }
 
     # Use RPN ROIs or externally generated ROIs for training
