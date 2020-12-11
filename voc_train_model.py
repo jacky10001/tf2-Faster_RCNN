@@ -20,11 +20,12 @@ from voc import VocConfig
 from voc import VocDataset
 
 LOG_ROOT = 'log_voc'
-MODEL_DIR = os.path.join(LOG_ROOT,'weights')
+MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
-COCO_MODEL_PATH = 'mask_rcnn_coco.h5'
+COCO_MODEL_PATH =\
+    os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
 #%%
@@ -83,12 +84,9 @@ init_with = "coco"  # imagenet, coco, or last
 if init_with == "imagenet":
     model.load_weights(model.get_imagenet_weights(), by_name=True)
 elif init_with == "coco":
-    # Load weights trained on MS COCO, but skip layers that
-    # are different due to the different number of classes
-    # See README for instructions to download the COCO weights
     model.load_weights(COCO_MODEL_PATH, by_name=True,
                        exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
-                                "mrcnn_bbox", "mrcnn_mask"])
+                                "mrcnn_bbox"])
 elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)
@@ -110,7 +108,7 @@ elif init_with == "last":
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=10, 
+            epochs=2, 
             layers='heads')
 
 
@@ -121,7 +119,7 @@ model.train(dataset_train, dataset_val,
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE / 10,
-            epochs=20, 
+            epochs=2, 
             layers="all")
 
 

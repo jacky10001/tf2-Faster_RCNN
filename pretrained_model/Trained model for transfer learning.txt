@@ -1,0 +1,13 @@
+
+Using pre-trained model for fine tuning.
+The file use *.h5 format for KERAS model.
+
+The weights from Mask_RCNN of repository of matterport
+Download URL: https://github.com/matterport/Mask_RCNN/releases
+
+They provide two weights
+1. COCO weights
+2. balloon weights
+
+
+Log date: 2020 Dec. 12

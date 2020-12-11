@@ -19,11 +19,13 @@ from frcnn.model import log
 from shapes import ShapesConfig
 from shapes import ShapesDataset
 
-MODEL_DIR = 'log_shapes'
+LOG_ROOT = 'log_shapes'
+MODEL_DIR = os.path.join(LOG_ROOT,'weights')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
-COCO_MODEL_PATH = 'mask_rcnn_coco.h5'
+COCO_MODEL_PATH =\
+    os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
 #%%
@@ -85,7 +87,7 @@ elif init_with == "coco":
     # See README for instructions to download the COCO weights
     model.load_weights(COCO_MODEL_PATH, by_name=True,
                        exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
-                                "mrcnn_bbox", "mrcnn_mask"])
+                                "mrcnn_bbox"])
 elif init_with == "last":
     # Load the last model you trained and continue training
     model.load_weights(model.find_last(), by_name=True)

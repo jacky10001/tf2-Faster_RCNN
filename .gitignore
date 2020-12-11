@@ -123,5 +123,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-mask_rcnn_coco.h5
+pretrained_model/*.h5
 log*/
