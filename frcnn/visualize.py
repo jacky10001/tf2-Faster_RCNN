@@ -7,17 +7,13 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import os
-import sys
 import random
 import itertools
 import colorsys
 
 import numpy as np
-from skimage.measure import find_contours
 import matplotlib.pyplot as plt
 from matplotlib import patches,  lines
-from matplotlib.patches import Polygon
 import IPython.display
 
 # Import Mask RCNN
