@@ -8,9 +8,11 @@
 import cv2
 import random
 import numpy as np
-from frcnn.config import Config
-from frcnn.utils import Dataset
-from frcnn.utils import non_max_suppression
+
+# Import Faster RCNN
+from ..config import Config
+from ..utils import Dataset
+from ..utils import non_max_suppression
 
 
 
