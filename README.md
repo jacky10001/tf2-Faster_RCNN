@@ -3,20 +3,15 @@
 This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN)
 For implementation of Faster RCNN model
 
-~~In future, I will try VOC format data.~~  
-~~Current VOC format data can train.~~  
-**Current can train BCCD data and Shapes data**  
+**Some error when I input voc 2007 dataset**
 
-## Done work  
-* Remove mask part  
-* Inheritance "Dataset" class, **add load bbox function**  
-  Modify "data_generator" in frcnn/model.py  
-
-## Future work  
-**Some error when i input voc data**  
-* Input voc 2017 data  
-* Change backbone  
-* Head layer reduce weights  
+## Work list 
+[X] Remove mask part  
+[X] Training Shapes dataset  
+[X] Training BCCD dataset
+[ ] Input voc 2017 data  
+[ ] Change backbone (Will use Keras application)  
+[ ] Head layer reduce weights  
 
 ## Tips  
 * Input data  
@@ -30,5 +25,5 @@ For implementation of Faster RCNN model
   I build environment to Python 3.6.6 by Anaconda  
 
 ## Refer
-BCCD dataset: [here](https://github.com/Shenggan/BCCD_Dataset)
-Related work on my [repo](https://github.com/jacky10001/Mask_RCNN-tf2)
+BCCD dataset: [here](https://github.com/Shenggan/BCCD_Dataset)  
+Related work on my [repo](https://github.com/jacky10001/Mask_RCNN-tf2)  
