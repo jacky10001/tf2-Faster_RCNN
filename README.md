@@ -6,12 +6,12 @@ For implementation of Faster RCNN model
 **Some error when I input voc 2007 dataset**
 
 ## Work list 
-[X] Remove mask part  
-[X] Training Shapes dataset  
-[X] Training BCCD dataset
-[ ] Input voc 2017 data  
-[ ] Change backbone (Will use Keras application)  
-[ ] Head layer reduce weights  
+- [x] Remove mask part  
+- [x] Training Shapes dataset  
+- [x] Training BCCD dataset  
+- [ ] Input voc 2017 data  
+- [ ] Change backbone (Will use Keras application)  
+- [ ] Head layer reduce weights  
 
 ## Tips  
 * Input data  
