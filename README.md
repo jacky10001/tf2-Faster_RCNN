@@ -9,8 +9,8 @@ For implementation of Faster RCNN model
 
 ## Done work  
 * Remove mask part  
-* Inheritance "Dataset" class, **add load bbox function**
-Modify "data_generator" in frcnn/model.py  
+* Inheritance "Dataset" class, **add load bbox function**  
+  Modify "data_generator" in frcnn/model.py  
 
 ## Tips  
 * Input data  
@@ -20,6 +20,8 @@ Modify "data_generator" in frcnn/model.py
     
     **NUM_CLASSES**  
     Set number of classes of custom dataset
+* Install package can follow [here](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/requirements.txt)  
+  I build environment by Python 3.6.6 (Anaconda)
 
 ## Future work  
 * Input voc 2017 data  
