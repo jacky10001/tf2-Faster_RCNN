@@ -982,7 +982,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
 
 def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
                            active_class_ids):
-    """Loss for the classifier head of Mask RCNN.
+    """Loss for the classifier head of Faster RCNN.
 
     target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
         padding to fill in the array.
@@ -1017,7 +1017,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 
 
 def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
-    """Loss for Mask R-CNN bounding box refinement.
+    """Loss for Faster R-CNN bounding box refinement.
 
     target_bbox: [batch, num_rois, (dy, dx, log(dh), log(dw))]
     target_class_ids: [batch, num_rois]. Integer class IDs.
@@ -1052,8 +1052,8 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
 ############################################################
 
 # TODO
-def load_image_gt(dataset, config, image_id, augment=False, augmentation=None):
-    """Load and return ground truth data for an image (image, mask, bounding boxes).
+def load_image_gt(dataset, config, image_id, augment=False):
+    """Load and return ground truth data for an image (image, bounding boxes).
 
     augment: (deprecated. Use augmentation instead). If true, apply random
         image augmentation. Currently, only horizontal flipping is offered.
@@ -1067,7 +1067,7 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None):
     class_ids: [instance_count] Integer class IDs
     bbox: [instance_count, (y1, x1, y2, x2)]
     """
-    # Load image and mask
+    # Load image and bbox
     image = dataset.load_image(image_id)
     bbox, class_ids = dataset.load_bbox(image_id)
     original_shape = image.shape
@@ -1077,13 +1077,6 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None):
         min_scale=config.IMAGE_MIN_SCALE,
         max_dim=config.IMAGE_MAX_DIM,
         mode=config.IMAGE_RESIZE_MODE)
-
-    # Random horizontal flips.
-    # will be removed in a future update in favor of augmentation
-    if augment:
-        logging.warning("'augment' is deprecated. Use 'augmentation' instead.")
-        if random.randint(0, 1):
-            image = np.fliplr(image)
 
     # Active classes
     # Different datasets have different classes, so track the
@@ -1100,24 +1093,20 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None):
 
 
 def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, config):
-    """Generate targets for training Stage 2 classifier and mask heads.
+    """Generate targets for training Stage 2 classifier head.
     This is not used in normal training. It's useful for debugging or to train
-    the Mask RCNN heads without using the RPN head.
+    the Faster RCNN heads without using the RPN head.
 
     Inputs:
     rpn_rois: [N, (y1, x1, y2, x2)] proposal boxes.
     gt_class_ids: [instance count] Integer class IDs
     gt_boxes: [instance count, (y1, x1, y2, x2)]
-    gt_masks: [height, width, instance count] Ground truth masks. Can be full
-              size or mini-masks.
 
     Returns:
     rois: [TRAIN_ROIS_PER_IMAGE, (y1, x1, y2, x2)]
     class_ids: [TRAIN_ROIS_PER_IMAGE]. Integer class IDs.
     bboxes: [TRAIN_ROIS_PER_IMAGE, NUM_CLASSES, (y, x, log(h), log(w))]. Class-specific
             bbox refinements.
-    masks: [TRAIN_ROIS_PER_IMAGE, height, width, NUM_CLASSES). Class specific masks cropped
-           to bbox boundaries and resized to neural network output size.
     """
     assert rpn_rois.shape[0] > 0
     assert gt_class_ids.dtype == np.int32, "Expected int but got {}".format(
@@ -1128,7 +1117,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, config):
     # It's common to add GT Boxes to ROIs but we don't do that here because
     # according to XinLei Chen's paper, it doesn't help.
 
-    # Trim empty padding in gt_boxes and gt_masks parts
+    # Trim empty padding in gt_boxes parts
     instance_ids = np.where(gt_class_ids > 0)[0]
     assert instance_ids.shape[0] > 0, "Image must contain instances."
     gt_class_ids = gt_class_ids[instance_ids]
@@ -1183,7 +1172,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, config):
     if remaining > 0:
         # Looks like we don't have enough samples to maintain the desired
         # balance. Reduce requirements and fill in the rest. This is
-        # likely different from the Mask RCNN paper.
+        # likely different from the Faster RCNN paper.
 
         # There is a small chance we have neither fg nor bg samples.
         if keep.shape[0] == 0:
@@ -1408,11 +1397,10 @@ def generate_random_rois(image_shape, count, gt_class_ids, gt_boxes):
     return rois
 
 #TODO
-def data_generator(dataset, config, shuffle=True, augment=False, augmentation=None,
-                   random_rois=0, batch_size=1, detection_targets=False,
-                   no_augmentation_sources=None):
+def data_generator(dataset, config, shuffle=True, augment=False,
+                   random_rois=0, batch_size=1, detection_targets=False):
     """A generator that returns images and corresponding target class ids,
-    bounding box deltas, and masks.
+    bounding box deltas.
 
     dataset: The Dataset object to pick data from
     config: The model config object
@@ -1423,15 +1411,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
         For example, passing imgaug.augmenters.Fliplr(0.5) flips images
         right/left 50% of the time.
     random_rois: If > 0 then generate proposals to be used to train the
-                 network classifier and mask heads. Useful if training
-                 the Mask RCNN part without the RPN.
+                 network classifier head. Useful if training
+                 the Faster RCNN part without the RPN.
     batch_size: How many images to return in each call
     detection_targets: If True, generate detection targets (class IDs, bbox
-        deltas, and masks). Typically for debugging or visualizations because
-        in trainig detection targets are generated by DetectionTargetLayer.
-    no_augmentation_sources: Optional. List of sources to exclude for
-        augmentation. A source is string that identifies a dataset and is
-        defined in the Dataset class.
+        deltas). Typically for debugging or visualizations because in trainig
+        detection targets are generated by DetectionTargetLayer.
 
     Returns a Python generator. Upon calling next() on it, the
     generator returns two lists, inputs and outputs. The contents
@@ -1445,14 +1430,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
     - gt_boxes: [batch, MAX_GT_INSTANCES, (y1, x1, y2, x2)]
 
     outputs list: Usually empty in regular training. But if detection_targets
-        is True then the outputs list contains target class_ids, bbox deltas,
-        and masks.
+        is True then the outputs list contains target class_ids, bbox deltas.
     """
     b = 0  # batch item index
     image_index = -1
     image_ids = np.copy(dataset.image_ids)
     error_count = 0
-    no_augmentation_sources = no_augmentation_sources or []
 
     # Anchors
     # [anchor_count, (y1, x1, y2, x2)]
@@ -1471,18 +1454,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
             if shuffle and image_index == 0:
                 np.random.shuffle(image_ids)
 
-            # Get GT bounding boxes and masks for image.
+            # Get GT bounding boxes.
             image_id = image_ids[image_index]
 
             # If the image source is not to be augmented pass None as augmentation
-            if dataset.image_info[image_id]['source'] in no_augmentation_sources:
-                image, image_meta, gt_class_ids, gt_boxes = \
-                load_image_gt(dataset, config, image_id, augment=augment,
-                              augmentation=None)
-            else:
-                image, image_meta, gt_class_ids, gt_boxes = \
-                    load_image_gt(dataset, config, image_id, augment=augment,
-                                augmentation=augmentation)
+            image, image_meta, gt_class_ids, gt_boxes = \
+                load_image_gt(dataset, config, image_id, augment=augment)
 
             # Skip images that have no instances. This can happen in cases
             # where we train on a subset of classes and the image doesn't
@@ -1494,7 +1471,7 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
             rpn_match, rpn_bbox = build_rpn_targets(image.shape, anchors,
                                                     gt_class_ids, gt_boxes, config)
 
-            # Mask R-CNN Targets
+            # Faster R-CNN Targets
             if random_rois:
                 rpn_rois = generate_random_rois(
                     image.shape, random_rois, gt_class_ids, gt_boxes)
@@ -1582,11 +1559,11 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
 
 ############################################################
-#  MaskRCNN Class
+#  FasterRCNN Class
 ############################################################
 
-class MaskRCNN():
-    """Encapsulates the Mask RCNN model functionality.
+class FasterRCNN():
+    """Encapsulates the Faster RCNN model functionality.
 
     The actual Keras model is in the keras_model property.
     """
@@ -1604,8 +1581,8 @@ class MaskRCNN():
         self.set_log_dir()
         self.keras_model = self.build(mode=mode, config=config)
 
-    def build(self, mode, config):
-        """Build Mask R-CNN architecture.
+    def build(self, mode, config): #TODO
+        """Build Faster R-CNN architecture.
             input_shape: The shape of the input image.
             mode: Either "training" or "inference". The inputs and
                 outputs of the model differ accordingly.
@@ -1631,7 +1608,7 @@ class MaskRCNN():
             input_rpn_bbox = KL.Input(
                 shape=[None, 4], name="input_rpn_bbox", dtype=tf.float32)
 
-            # Detection GT (class IDs, bounding boxes, and masks)
+            # Detection GT (class IDs, bounding boxes)
             # 1. GT Class IDs (zero padded)
             input_gt_class_ids = KL.Input(
                 shape=[None], name="input_gt_class_ids", dtype=tf.int32)
@@ -1740,8 +1717,8 @@ class MaskRCNN():
 
             # Generate detection targets
             # Subsamples proposals and generates target outputs for training
-            # Note that proposal class IDs, gt_boxes, and gt_masks are zero
-            # padded. Equally, returned rois and targets are zero padded.
+            # Note that proposal class IDs, gt_boxes are zero padded.
+            # Equally, returned rois and targets are zero padded.
             rois, target_class_ids, target_bbox =\
                 DetectionTargetLayer(config, name="proposal_targets")([
                     target_rois, input_gt_class_ids, gt_boxes])
@@ -1986,7 +1963,7 @@ class MaskRCNN():
             # A sample model path might look like:
             # \path\to\logs\coco20171029T2315\faster_rcnn_coco_0001.h5 (Windows)
             # /path/to/logs/coco20171029T2315/faster_rcnn_coco_0001.h5 (Linux)
-            regex = r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})[/\\]mask\_rcnn\_[\w-]+(\d{4})\.h5"
+            regex = r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})[/\\]faster\_rcnn\_[\w-]+(\d{4})\.h5"
             m = re.match(regex, model_path)
             if m:
                 now = datetime.datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
@@ -2007,7 +1984,7 @@ class MaskRCNN():
             "*epoch*", "{epoch:04d}")
 
     def train(self, train_dataset, val_dataset, learning_rate, epochs, layers,
-              augmentation=None, custom_callbacks=None, no_augmentation_sources=None):
+              custom_callbacks=None, augment=None):
         """Train the model.
         train_dataset, val_dataset: Training and validation Dataset objects.
         learning_rate: The learning rate to train with
@@ -2058,9 +2035,8 @@ class MaskRCNN():
 
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
-                                         augmentation=augmentation,
                                          batch_size=self.config.BATCH_SIZE,
-                                         no_augmentation_sources=no_augmentation_sources)
+                                         augment=augment)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
 
@@ -2093,8 +2069,9 @@ class MaskRCNN():
             workers = 0
         else:
             workers = multiprocessing.cpu_count()
-
-        self.keras_model.fit_generator(
+        
+        # TODO
+        self.keras_model.fit(
             train_generator,
             initial_epoch=self.epoch,
             epochs=epochs,
