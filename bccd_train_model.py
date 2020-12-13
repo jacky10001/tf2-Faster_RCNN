@@ -3,23 +3,16 @@
 
 已完成工作
 * 移除 mask 功能
-* 替換原本輸入 mask  改讀取 bbox
-* 原本 Shapes 程式  可以完整執行
+* 替換原本輸入 mask 改讀取 bbox
 
 程式測試紀錄
-* 訓練 all 失敗  
-    1. 錯誤訊息
-    TypeError: in converted code:
-    
-        D:\YJ\MyRepo\Faster_RCNN-tf2\frcnn\model.py:766 call  *
-            window = norm_boxes_graph(m['window'], image_shape[:2])
-    
-        TypeError: tf__norm_boxes_graph() missing 1 required positional argument: 'num_rows'
-    2. GPU不足的情形發生= = (GTX1060 6GB)
+* data 需要除錯
+  更改 config 來關掉 resize_image 功能
 
 未來工作
-* 比較 voc 與 coco 差異，嘗試使用原來大小訓練
-* 改變 backbone 移除 fpn 減少 head 權重數量
+* 改變 backbone 移除 
+* fpn 移除 
+* head 權重數量減少
 
 @author: Jacky Gao
 @date: Fri Dec 11 21:47:40 2020
@@ -31,15 +24,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
+# Import Faster RCNN
 from frcnn import utils
 from frcnn import model as modellib
 from frcnn import visualize
 from frcnn.model import log
 
+# Import sample module
 from voc import VocConfig
 from voc import VocDataset
 
-LOG_ROOT = 'log_voc'
+LOG_ROOT = 'log_bccd'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -49,7 +44,13 @@ COCO_MODEL_PATH =\
 
 
 #%%
-config = VocConfig()
+class BccdConfig(VocConfig):
+    NAME = "bccd"
+    LEARNING_RATE = 0.0005
+    STEPS_PER_EPOCH = 100
+    NUM_CLASSES = 1 + 3  # background + BCCD has 3 classes
+    
+config = BccdConfig()
 config.display()
 
 
@@ -70,18 +71,17 @@ def get_ax(rows=1, cols=1, size=6):
 dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
 
 # Training dataset
-dataset_train = VocDataset()  # TODO: Check data problem
-dataset_train.load_voc(dataset_dir, "train")
+dataset_train = VocDataset()
+dataset_train.load_voc(dataset_dir, "trainval")
 dataset_train.prepare()
 
 # Validation dataset
 dataset_val = VocDataset()
-dataset_val.load_voc(dataset_dir, "val")
+dataset_val.load_voc(dataset_dir, "trainval")
 dataset_val.prepare()
 
 
 #%% Load and display random samples
-  # TODO: Check data problem
 image_ids = np.random.choice(dataset_train.image_ids, 1)
 for image_id in image_ids:
     image = dataset_train.load_image(image_id)
@@ -92,8 +92,8 @@ for image_id in image_ids:
 
 #%% Create Model
 # Create model in training mode
-model = modellib.MaskRCNN(mode="training", config=config,
-                          model_dir=MODEL_DIR)
+model = modellib.FasterRCNN(mode="training", config=config,
+                            model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_training.png'),
                           show_shapes=True)
@@ -113,35 +113,16 @@ elif init_with == "last":
     model.load_weights(model.find_last(), by_name=True)
 
 
-#%% Train in two stages:
-# 1. Only the heads. Here we're freezing all the backbone layers
-#    and training only the randomly initialized layers
-#    (i.e. the ones that we didn't use pre-trained weights from MS COCO).
-#    To train only the head layers, pass `layers='heads'` to the `train()` function.
-# 2. Fine-tune all layers. For this simple example it's not necessary,
-#    but we're including it to show the process. 
-#    Simply pass `layers="all` to train all layers.
-# 
-# Train the head branches
+#%% Train the head branches
+# Only the heads.
 # Passing layers="heads" freezes all layers except the head
 # layers. You can also pass a regular expression to select
 # which layers to train by name pattern.
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=10, 
+            epochs=30, 
             layers='heads')
-
-
-#%% Fine tune all layers
-# Passing layers="all" trains all layers. You can also 
-# pass a regular expression to select which layers to
-# train by name pattern.
-
-model.train(dataset_train, dataset_val, 
-            learning_rate=config.LEARNING_RATE / 10,
-            epochs=10, 
-            layers="all")
 
 
 #%% Save weights
@@ -153,16 +134,16 @@ model.train(dataset_train, dataset_val,
 
 
 #%% Detection
-class InferenceConfig(VocConfig):
+class InferenceConfig(BccdConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
 inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
-model = modellib.MaskRCNN(mode="inference", 
-                          config=inference_config,
-                          model_dir=MODEL_DIR)
+model = modellib.FasterRCNN(mode="inference", 
+                            config=inference_config,
+                            model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
                           show_shapes=True)
@@ -171,6 +152,7 @@ tf.keras.utils.plot_model(model.keras_model,
 # Either set a specific path or find last trained weights
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 model_path = model.find_last()
+# model_path = r"log_voc/model/voc20201212T1819/faster_rcnn_voc_0010.h5"
 
 # Load trained weights
 print("Loading weights from ", model_path)
@@ -188,11 +170,8 @@ log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
 visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-                            dataset_train.class_names, figsize=(8, 8))
+                            dataset_train.class_names, ax=get_ax())
 
-
-#%%
-# TODO: Check data problem, predict bbox is error
 results = model.detect([original_image], verbose=1)
 
 r = results[0]
@@ -204,7 +183,8 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Compute VOC-Style mAP @ IoU=0.5
 # Running on 10 images. Increase for better accuracy.
 
-image_ids = np.random.choice(dataset_val.image_ids, 10)
+# image_ids = np.random.choice(dataset_val.image_ids, 10)
+image_ids = dataset_val.image_ids
 APs = []
 for image_id in image_ids:
     # Load image and ground truth data
@@ -220,4 +200,5 @@ for image_id in image_ids:
     APs.append(AP)
     
 print("mAP: ", np.mean(APs))
+print("Total: ", len(APs))
 

@@ -41,13 +41,14 @@ def get_ax(rows=1, cols=1, size=6):
 
 #%% Configurations
 config = VocConfig()
-dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
+# dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
+dataset_dir = r"D:\YJ\MyDatasets\IOPLAB\Jerry_happycells_help\cell_label_data"
 
 
 #%% Dataset
 # Load dataset
 dataset = VocDataset()
-dataset.load_voc(dataset_dir, "train")
+dataset.load_voc(dataset_dir, "trainval")
 
 # Must call before using the dataset
 dataset.prepare()
@@ -64,7 +65,7 @@ image_ids = np.random.choice(dataset.image_ids, 4)
 for image_id in image_ids:
     image = dataset.load_image(image_id)
     bbox, class_ids = dataset.load_bbox(image_id)
-    visualize.display_image(image)
+    # visualize.display_image(image)
     visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_ax())
 
 
