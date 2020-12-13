@@ -1,18 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
+""" Using BCCD dataset for implementation of Faster RCNN
 
-已完成工作
-* 移除 mask 功能
-* 替換原本輸入 mask 改讀取 bbox
-
-程式測試紀錄
-* data 需要除錯
-  更改 config 來關掉 resize_image 功能
-
-未來工作
-* 改變 backbone 移除 
-* fpn 移除 
-* head 權重數量減少
+Introduce BCCD dataset
+Classes: 3 (RBC WBC Platelets)
+Total of image: 365
+Image size: 640 x 480 (Width x Height)
+Image type: jpeg (JPEG)
+Annotation: VOC format
 
 @author: Jacky Gao
 @date: Fri Dec 11 21:47:40 2020
