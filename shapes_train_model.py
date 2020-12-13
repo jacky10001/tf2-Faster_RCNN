@@ -77,8 +77,8 @@ for image_id in image_ids:
 
 #%% Create Model
 # Create model in training mode
-model = modellib.MaskRCNN(mode="training", config=config,
-                          model_dir=MODEL_DIR)
+model = modellib.FasterRCNN(mode="training", config=config,
+                            model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_training.png'),
                           show_shapes=True)
@@ -148,9 +148,9 @@ class InferenceConfig(ShapesConfig):
 inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
-model = modellib.MaskRCNN(mode="inference", 
-                          config=inference_config,
-                          model_dir=MODEL_DIR)
+model = modellib.FasterRCNN(mode="inference", 
+                            config=inference_config,
+                            model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
                           show_shapes=True)
