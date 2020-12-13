@@ -12,6 +12,12 @@ For implementation of Faster RCNN model
 * Inheritance "Dataset" class, **add load bbox function**  
   Modify "data_generator" in frcnn/model.py  
 
+## Future work  
+**Some error when i input voc data**  
+* Input voc 2017 data  
+* Change backbone  
+* Head layer reduce weights  
+
 ## Tips  
 * Input data  
   * Modify config  
@@ -21,12 +27,7 @@ For implementation of Faster RCNN model
     **NUM_CLASSES**  
     Set number of classes of custom dataset
 * Install package can follow [here](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/requirements.txt)  
-  I build environment by Python 3.6.6 (Anaconda)
-
-## Future work  
-* Input voc 2017 data  
-* Change backbone   
-* Head layer reduce weights  
+  I build environment to Python 3.6.6 by Anaconda  
 
 ## Refer
 BCCD dataset: [here](https://github.com/Shenggan/BCCD_Dataset)

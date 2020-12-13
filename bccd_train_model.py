@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """ Using BCCD dataset for implementation of Faster RCNN
-
-Introduce BCCD dataset
 Classes: 3 (RBC WBC Platelets)
 Total of image: 365
 Image size: 640 x 480 (Width x Height)
@@ -13,6 +11,7 @@ Annotation: VOC format
 """
 
 import os
+import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,8 +24,9 @@ from frcnn import visualize
 from frcnn.model import log
 
 # Import sample module
-from voc import VocConfig
-from voc import VocDataset
+from frcnn.samples.bccd import BccdConfig
+from frcnn.samples.bccd import BccdDataset
+
 
 LOG_ROOT = 'log_bccd'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
@@ -37,13 +37,7 @@ COCO_MODEL_PATH =\
     os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
-#%%
-class BccdConfig(VocConfig):
-    NAME = "bccd"
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 100
-    NUM_CLASSES = 1 + 3  # background + BCCD has 3 classes
-    
+#%%    
 config = BccdConfig()
 config.display()
 
@@ -65,13 +59,13 @@ def get_ax(rows=1, cols=1, size=6):
 dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
 
 # Training dataset
-dataset_train = VocDataset()
+dataset_train = BccdDataset()
 dataset_train.load_voc(dataset_dir, "trainval")
 dataset_train.prepare()
 
 # Validation dataset
-dataset_val = VocDataset()
-dataset_val.load_voc(dataset_dir, "trainval")
+dataset_val = BccdDataset()
+dataset_val.load_voc(dataset_dir, "test")
 dataset_val.prepare()
 
 
@@ -146,7 +140,7 @@ tf.keras.utils.plot_model(model.keras_model,
 # Either set a specific path or find last trained weights
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 model_path = model.find_last()
-# model_path = r"log_voc/model/voc20201212T1819/faster_rcnn_voc_0010.h5"
+# model_path = r"log_bccd\model\bccd20201213T2201/faster_rcnn_best.h5"
 
 # Load trained weights
 print("Loading weights from ", model_path)
@@ -178,8 +172,13 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Running on 10 images. Increase for better accuracy.
 
 # image_ids = np.random.choice(dataset_val.image_ids, 10)
+
+# image_ids = dataset_train.image_ids
 image_ids = dataset_val.image_ids
+print("Total: ", len(image_ids))
+
 APs = []
+t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
@@ -192,7 +191,8 @@ for image_id in image_ids:
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
-    
-print("mAP: ", np.mean(APs))
-print("Total: ", len(APs))
+t2 = time.time()
+
+print('Time:', t2-t1, 's')  
+print("mAP:", np.mean(APs))
 

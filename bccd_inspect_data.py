@@ -23,8 +23,8 @@ from frcnn.visualize import display_images
 from frcnn.model import log
 
 # Import sample module
-from voc import VocConfig
-from voc import VocDataset
+from frcnn.samples.bccd import BccdConfig
+from frcnn.samples.bccd import BccdDataset
 
 
 def get_ax(rows=1, cols=1, size=6):
@@ -40,14 +40,15 @@ def get_ax(rows=1, cols=1, size=6):
 
 
 #%% Configurations
-config = VocConfig()
-# dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
-dataset_dir = r"D:\YJ\MyDatasets\IOPLAB\Jerry_happycells_help\cell_label_data"
+config = BccdConfig()
+config.display()
 
 
 #%% Dataset
+dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
+
 # Load dataset
-dataset = VocDataset()
+dataset = BccdDataset()
 dataset.load_voc(dataset_dir, "trainval")
 
 # Must call before using the dataset
@@ -95,7 +96,6 @@ image = dataset.load_image(image_id)
 bbox, class_ids = dataset.load_bbox(image_id)
 original_shape = image.shape
 
-# TODO
 # Resize
 image, window, scale, padding, _ = utils.resize_image(
     image, 

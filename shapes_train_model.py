@@ -24,8 +24,9 @@ from frcnn import visualize
 from frcnn.model import log
 
 # Import sample module
-from shapes import ShapesConfig
-from shapes import ShapesDataset
+from frcnn.samples.shapes import ShapesConfig
+from frcnn.samples.shapes import ShapesDataset
+
 
 LOG_ROOT = 'log_shapes'
 MODEL_DIR = os.path.join(LOG_ROOT,'weights')
