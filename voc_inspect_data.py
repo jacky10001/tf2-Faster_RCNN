@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Faster R-CNN - Inspect Training Data
-
-Goal: create (modify) resize_image function 
-      to match bounding box position.
+Inspect Training Data for VOC Dataset
 
 @author: Jacky Gao
 @date: Sun Dec 13 21:45:44 2020
