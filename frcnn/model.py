@@ -13,7 +13,6 @@ import re
 import math
 import logging
 from collections import OrderedDict
-import multiprocessing
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -1070,12 +1069,17 @@ def load_image_gt(dataset, config, image_id, augment=False):
     image = dataset.load_image(image_id)
     bbox, class_ids = dataset.load_bbox(image_id)
     original_shape = image.shape
+    
+    # Resize image and bbox
     image, window, scale, padding, crop = utils.resize_image(
         image,
         min_dim=config.IMAGE_MIN_DIM,
         min_scale=config.IMAGE_MIN_SCALE,
         max_dim=config.IMAGE_MAX_DIM,
         mode=config.IMAGE_RESIZE_MODE)
+    
+    bbox = utils.resize_bbox(
+        bbox, window, scale, mode=config.IMAGE_RESIZE_MODE)
 
     # Active classes
     # Different datasets have different classes, so track the
@@ -1731,7 +1735,7 @@ class FasterRCNN():
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
             # clean up (use tf.identify if necessary)
-            output_rois = KL.Lambda(lambda x: x * 1, name="output_rois")(rois)
+            output_rois = KL.Lambda(lambda x: x[1], name="output_rois")(rois)
 
             # Losses
             rpn_class_loss = KL.Lambda(lambda x: rpn_class_loss_graph(*x), name="rpn_class_loss")(
@@ -1867,7 +1871,7 @@ class FasterRCNN():
                                 md5_hash='a268eb855778b3df3c7506639542a6af')
         return weights_path
 
-    def compile(self, learning_rate, momentum):
+    def compile(self, learning_rate, momentum): #TODO
         """Gets the model ready for training. Adds losses, regularization, and
         metrics. Then calls the Keras compile() function.
         """
@@ -1896,7 +1900,10 @@ class FasterRCNN():
         self.keras_model.add_loss(lambda: tf.add_n(reg_losses))
 
         # Add metrics for losses
-        for name in loss_names:
+        metric_names = [
+            "rpn_class_loss",  "rpn_bbox_loss",
+            "mrcnn_class_loss", "mrcnn_bbox_loss"]
+        for name in metric_names:
             layer = self.keras_model.get_layer(name)
             self.keras_model.metrics_names.append(name)
             loss = (tf.reduce_mean(layer.output, keepdims=True) * self.config.LOSS_WEIGHTS.get(name, 1.))
@@ -2062,14 +2069,6 @@ class FasterRCNN():
         log("Checkpoint Path: {}".format(self.checkpoint_path))
         self.set_trainable(layers)
         self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
-
-        # Work-around for Windows: Keras fails on Windows when using
-        # multiprocessing workers. See discussion here:
-        # https://github.com/matterport/faster_rcnn/issues/13#issuecomment-353124009
-        if os.name is 'nt':
-            workers = 0
-        else:
-            workers = multiprocessing.cpu_count()
         
         # TODO
         self.keras_model.fit(
@@ -2080,9 +2079,6 @@ class FasterRCNN():
             callbacks=callbacks,
             validation_data=val_generator,
             validation_steps=self.config.VALIDATION_STEPS,
-            max_queue_size=100,
-            workers=workers,
-            use_multiprocessing=True,
         )
         self.epoch = max(self.epoch, epochs)
 

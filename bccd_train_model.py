@@ -65,7 +65,7 @@ dataset_train.prepare()
 
 # Validation dataset
 dataset_val = BccdDataset()
-dataset_val.load_voc(dataset_dir, "test")
+dataset_val.load_voc(dataset_dir, "trainval")
 dataset_val.prepare()
 
 
@@ -88,7 +88,7 @@ tf.keras.utils.plot_model(model.keras_model,
 
 
 #%% Which weights to start with?
-init_with = "coco"  # imagenet, coco, or last
+init_with = "imagenet"  # imagenet, coco, or last
 
 if init_with == "imagenet":
     model.load_weights(model.get_imagenet_weights(), by_name=True)
@@ -101,6 +101,7 @@ elif init_with == "last":
     model.load_weights(model.find_last(), by_name=True)
 
 
+
 #%% Train the head branches
 # Only the heads.
 # Passing layers="heads" freezes all layers except the head
@@ -109,8 +110,13 @@ elif init_with == "last":
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=30, 
+            epochs=20, 
             layers='heads')
+
+model.train(dataset_train, dataset_val, 
+            learning_rate=config.LEARNING_RATE, 
+            epochs=30, 
+            layers='all')
 
 
 #%% Save weights
@@ -148,9 +154,13 @@ model.load_weights(model_path, by_name=True)
 
 
 #%% Test on a random image
-image_id = random.choice(dataset_val.image_ids)
+ds = dataset_train
+# ds = dataset_val
+
+image_id = random.choice(ds.image_ids)
+
 original_image, image_meta, gt_class_id, gt_bbox =\
-    modellib.load_image_gt(dataset_val, inference_config, image_id)
+    modellib.load_image_gt(ds, inference_config, image_id)
 
 log("original_image", original_image)
 log("image_meta", image_meta)
@@ -164,17 +174,18 @@ results = model.detect([original_image], verbose=1)
 
 r = results[0]
 visualize.display_instances(original_image, r['rois'], r['class_ids'], 
-                            dataset_val.class_names, r['scores'], ax=get_ax())
+                            ds.class_names, r['scores'], ax=get_ax())
 
 
 #%% Evaluation
 # Compute VOC-Style mAP @ IoU=0.5
 # Running on 10 images. Increase for better accuracy.
 
-# image_ids = np.random.choice(dataset_val.image_ids, 10)
+ds = dataset_train
+# ds = dataset_val
 
-# image_ids = dataset_train.image_ids
-image_ids = dataset_val.image_ids
+# image_ids = np.random.choice(ds.image_ids, 10)
+image_ids = ds.image_ids
 print("Total: ", len(image_ids))
 
 APs = []
@@ -182,7 +193,7 @@ t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
-        modellib.load_image_gt(dataset_val, inference_config, image_id)
+        modellib.load_image_gt(ds, inference_config, image_id)
     molded_images = np.expand_dims(modellib.mold_image(image, inference_config), 0)
     # Run object detection
     results = model.detect([image], verbose=0)
@@ -192,7 +203,7 @@ for image_id in image_ids:
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
 t2 = time.time()
-
-print('Time:', t2-t1, 's')  
+ 
 print("mAP:", np.mean(APs))
+print('Time: %6.2fs'%(t2-t1)) 
 

@@ -2,11 +2,7 @@
 """
 Remove segmentation (mask) function
 Modify Shapes dataset to return bbox
-Visualization only take bbox not mask arguments 
-
-修改原始 Mask RCNN 程式 (移除'分割'功能)
-將 model.py、utils.py 與 mask 相關功能移除
-修改 ShapesDataset 直接輸出 bbox
+Visualization only draw bbox 
 
 @author: Jacky Gao
 @date: Wed Dec  9 00:57:35 2020
@@ -179,8 +175,6 @@ log("gt_bbox", gt_bbox)
 visualize.display_instances(original_image, gt_bbox, gt_class_id, 
                             dataset_train.class_names, figsize=(8, 8))
 
-
-#%%
 results = model.detect([original_image], verbose=1)
 
 r = results[0]

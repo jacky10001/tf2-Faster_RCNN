@@ -33,14 +33,14 @@ class BccdConfig(Config):
 
     # Close image resizing when input data to model
     IMAGE_RESIZE_MODE = "none"
-    IMAGE_MIN_DIM = 480
-    IMAGE_MAX_DIM = 640
+    # IMAGE_MIN_DIM = 480
+    # IMAGE_MAX_DIM = 640
 
     # Learning rate
     LEARNING_RATE = 0.0005
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 200
 
     NUM_CLASSES = 1 + 3  # BG + BCCD 3 classes
 
