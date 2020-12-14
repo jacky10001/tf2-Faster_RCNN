@@ -22,8 +22,8 @@ from frcnn.visualize import display_images
 from frcnn.model import log
 
 # Import sample module
-from voc import VocConfig
-from voc import VocDataset
+from frcnn.samples.voc import VocConfig
+from frcnn.samples.voc import VocDataset
 
 
 def get_ax(rows=1, cols=1, size=6):
@@ -45,10 +45,8 @@ class VocConfig(VocConfig):
     STEPS_PER_EPOCH = 100
     NUM_CLASSES = 1 + 20  # background + VOC 20 classes
     
-    # none  square   pad64   crop
-    IMAGE_RESIZE_MODE = "none"
-    
 config = VocConfig()
+config.display()
 
 dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
 
@@ -102,25 +100,27 @@ image_id = np.random.choice(dataset.image_ids, 1)[0]
 image = dataset.load_image(image_id)
 bbox, class_ids = dataset.load_bbox(image_id)
 original_shape = image.shape
+visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_ax())
 
-# TODO
-# Resize debug for bbox
-image, window, scale, padding, _ = utils.resize_image(
+image_new, window, scale, padding, _ = utils.resize_image(
     image, 
     min_dim=config.IMAGE_MIN_DIM, 
     max_dim=config.IMAGE_MAX_DIM,
     mode=config.IMAGE_RESIZE_MODE)
 
 # Load Bounding box
+bbox = utils.resize_bbox(
+    bbox, window, scale, mode=config.IMAGE_RESIZE_MODE)
+
 
 # Display image and additional stats
 print("image_id: ", image_id, dataset.image_reference(image_id))
 print("Original shape: ", original_shape)
-log("image", image)
+log("image", image_new)
 log("class_ids", class_ids)
 log("bbox", bbox)
 # Display image and instances
-visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_ax())
+visualize.display_instances(image_new, bbox, class_ids, dataset.class_names, ax=get_ax())
 
 
 #%% Anchors

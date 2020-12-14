@@ -1,26 +1,36 @@
 """
-Mask R-CNN
 Common utility functions and classes.
+
+
+Modify info:
+* Remove segmetation function
+  - compute_overlaps_masks
+  - resize_mask
+  - expand_mask
+  - mold_mask
+  - unmold_mask
+  
+* Remove some function argument
+  All gt_masks
+  
+* resize_bbox (follow resize_image)
+  porvide bbox error
+
 
 Copyright (c) 2017 Matterport, Inc.
 Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import sys
-import os
 import logging
-import math
 import random
 import numpy as np
 import tensorflow as tf
-import scipy
 import skimage.color
 import skimage.io
 import skimage.transform
 import urllib.request
 import shutil
-import warnings
 from distutils.version import LooseVersion
 
 # URL from which to download the latest COCO trained weights
@@ -469,6 +479,26 @@ def resize_image(image, min_dim=None, max_dim=None, min_scale=None, mode="square
     else:
         raise Exception("Mode {} not supported".format(mode))
     return image.astype(image_dtype), window, scale, padding, crop
+
+
+# TODO
+def resize_bbox(bbox, window, scale, mode="square"):
+    y1_new, x1_new, _, _ = window
+
+    if mode == "none":
+        return bbox
+    
+    if mode == "square":
+        # Load Bounding box
+        bbox_new = bbox * scale
+        bbox_new = bbox_new.astype('int32')
+        bbox_new[:, 0] = bbox_new[:, 0] + y1_new
+        bbox_new[:, 1] = bbox_new[:, 1] + x1_new
+        bbox_new[:, 2] = bbox_new[:, 2] + y1_new
+        bbox_new[:, 3] = bbox_new[:, 3] + x1_new
+    else:
+        raise Exception("Mode {} not supported".format(mode))
+    return bbox_new
 
 
 ############################################################

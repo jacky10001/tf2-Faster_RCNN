@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
 """ Using VOC2007 dataset
 
-!! ERROR !!
-Need debug.
-
-Goal: create (modify) resize_image function 
-      to match bounding box position.
-
 @author: Jacky Gao
 @date: Sun Dec 13 21:38:05 2020
 """
 
 import os
+import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,8 +19,8 @@ from frcnn import visualize
 from frcnn.model import log
 
 # Import sample module
-from voc import VocConfig
-from voc import VocDataset
+from frcnn.samples.voc import VocConfig
+from frcnn.samples.voc import VocDataset
 
 LOG_ROOT = 'log_voc'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
@@ -37,13 +32,7 @@ COCO_MODEL_PATH =\
 
 
 #%%
-class Voc2007Config(VocConfig):
-    NAME = "voc"
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 100
-    NUM_CLASSES = 1 + 20  # background + VOC 20 classes
-    
-config = Voc2007Config()
+config = VocConfig()
 config.display()
 
 
@@ -70,7 +59,7 @@ dataset_train.prepare()
 
 # Validation dataset
 dataset_val = VocDataset()
-dataset_val.load_voc(dataset_dir, "trainval")
+dataset_val.load_voc(dataset_dir, "test")
 dataset_val.prepare()
 
 
@@ -127,7 +116,7 @@ model.train(dataset_train, dataset_val,
 
 
 #%% Detection
-class InferenceConfig(Voc2007Config):
+class InferenceConfig(VocConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
@@ -178,7 +167,10 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 
 # image_ids = np.random.choice(dataset_val.image_ids, 10)
 image_ids = dataset_val.image_ids
+print("Total: ", len(image_ids))
+
 APs = []
+t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
@@ -191,7 +183,8 @@ for image_id in image_ids:
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
+t2 = time.time()
     
 print("mAP: ", np.mean(APs))
-print("Total: ", len(APs))
+print('Time: %6.2fs'%(t2-t1))  
 

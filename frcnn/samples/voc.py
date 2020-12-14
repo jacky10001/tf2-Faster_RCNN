@@ -32,7 +32,7 @@ class VocConfig(Config):
     IMAGES_PER_GPU = 2
 
     # Close image resizing when input data to model
-    IMAGE_RESIZE_MODE = "none"
+    IMAGE_RESIZE_MODE = "square"
 
     # Learning rate and momentum
     LEARNING_RATE = 0.0005
