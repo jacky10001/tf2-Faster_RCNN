@@ -17,42 +17,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-# Import Faster RCNN
-from frcnn import utils
-from frcnn import model as modellib
-from frcnn import visualize
-from frcnn.model import log
+from frcnnfpn import utils
+from frcnnfpn import model as modellib
+from frcnnfpn import visualize
+from frcnnfpn.model import log
 
-# Import sample module
-from frcnn.samples.bccd import BccdConfig
-from frcnn.samples.bccd import BccdDataset
+from frcnnfpn.samples.bccd import BccdConfig
+from frcnnfpn.samples.bccd import BccdDataset
 
+def get_ax(rows=1, cols=1, size=5):
+    return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
 LOG_ROOT = 'log_bccd'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
-COCO_MODEL_PATH =\
-    os.path.join('pretrained_model','mask_rcnn_coco.h5')
+COCO_MODEL_PATH = os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
 #%%    
 config = BccdConfig()
 config.display()
-
-
-#%%
-def get_ax(rows=1, cols=1, size=6):
-    """Return a Matplotlib Axes array to be used in
-    all visualizations in the notebook. Provide a
-    central point to control graph sizes.
-     
-    Change the default size attribute to control the size
-    of rendered images
-    """
-    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
-    return ax
 
 
 #%% Dataset
@@ -74,7 +60,7 @@ image_ids = np.random.choice(dataset_train.image_ids, 1)
 for image_id in image_ids:
     image = dataset_train.load_image(image_id)
     bbox, class_ids = dataset_train.load_bbox(image_id)
-    visualize.display_image(image)
+    # visualize.display_image(image)
     visualize.display_instances(image, bbox, class_ids, dataset_train.class_names, ax=get_ax())
 
 

@@ -1,65 +1,52 @@
 # -*- coding: utf-8 -*-
-"""
-Remove segmentation (mask) function
-Modify Shapes dataset to return bbox
-Visualization only draw bbox 
+""" Using VOC2007 dataset
 
 @author: Jacky Gao
-@date: Wed Dec  9 00:57:35 2020
+@date: Sun Dec 13 21:38:05 2020
 """
 
 import os
+import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from frcnn import utils
-from frcnn import model as modellib
-from frcnn import visualize
-from frcnn.model import log
+from frcnnfpn import utils
+from frcnnfpn import model as modellib
+from frcnnfpn import visualize
+from frcnnfpn.model import log
 
-# Import sample module
-from frcnn.samples.shapes import ShapesConfig
-from frcnn.samples.shapes import ShapesDataset
+from frcnnfpn.samples.voc import VocConfig
+from frcnnfpn.samples.voc import VocDataset
 
+def get_ax(rows=1, cols=1, size=5):
+    return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_shapes'
-MODEL_DIR = os.path.join(LOG_ROOT,'weights')
+LOG_ROOT = 'log_voc'
+MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # Local path to trained weights file
-COCO_MODEL_PATH =\
-    os.path.join('pretrained_model','mask_rcnn_coco.h5')
+COCO_MODEL_PATH = os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
 #%%
-config = ShapesConfig()
+config = VocConfig()
 config.display()
 
 
-#%%
-def get_ax(rows=1, cols=1, size=6):
-    """Return a Matplotlib Axes array to be used in
-    all visualizations in the notebook. Provide a
-    central point to control graph sizes.
-    
-    Change the default size attribute to control the size
-    of rendered images
-    """
-    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
-    return ax
-
-
 #%% Dataset
+dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
+
 # Training dataset
-dataset_train = ShapesDataset()
-dataset_train.load_shapes(1000, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1])
+dataset_train = VocDataset()
+dataset_train.load_voc(dataset_dir, "trainval")
 dataset_train.prepare()
 
 # Validation dataset
-dataset_val = ShapesDataset()
-dataset_val.load_shapes(100, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1])
+dataset_val = VocDataset()
+dataset_val.load_voc(dataset_dir, "test")
 dataset_val.prepare()
 
 
@@ -87,9 +74,6 @@ init_with = "coco"  # imagenet, coco, or last
 if init_with == "imagenet":
     model.load_weights(model.get_imagenet_weights(), by_name=True)
 elif init_with == "coco":
-    # Load weights trained on MS COCO, but skip layers that
-    # are different due to the different number of classes
-    # See README for instructions to download the COCO weights
     model.load_weights(COCO_MODEL_PATH, by_name=True,
                        exclude=["mrcnn_class_logits", "mrcnn_bbox_fc", 
                                 "mrcnn_bbox","mrcnn_mask"])
@@ -98,47 +82,28 @@ elif init_with == "last":
     model.load_weights(model.find_last(), by_name=True)
 
 
-#%% Train in two stages:
-# 1. Only the heads. Here we're freezing all the backbone layers
-#    and training only the randomly initialized layers
-#    (i.e. the ones that we didn't use pre-trained weights from MS COCO).
-#    To train only the head layers, pass `layers='heads'` to the `train()` function.
-# 2. Fine-tune all layers. For this simple example it's not necessary,
-#    but we're including it to show the process. 
-#    Simply pass `layers="all` to train all layers.
-# 
-# Train the head branches
+#%% Train the head branches
+# Only the heads.
 # Passing layers="heads" freezes all layers except the head
 # layers. You can also pass a regular expression to select
 # which layers to train by name pattern.
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=2, 
+            epochs=30, 
             layers='heads')
-
-
-#%% Fine tune all layers
-# Passing layers="all" trains all layers. You can also 
-# pass a regular expression to select which layers to
-# train by name pattern.
-
-model.train(dataset_train, dataset_val, 
-            learning_rate=config.LEARNING_RATE / 10,
-            epochs=5, 
-            layers="all")
 
 
 #%% Save weights
 # Typically not needed because callbacks save after every epoch
 # Uncomment to save manually
 
-model_path = os.path.join(MODEL_DIR, "faster_rcnn_shapes.h5")
-model.keras_model.save_weights(model_path)
+# model_path = os.path.join(MODEL_DIR, "faster_rcnn.h5")
+# model.keras_model.save_weights(model_path)
 
 
 #%% Detection
-class InferenceConfig(ShapesConfig):
+class InferenceConfig(VocConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
@@ -156,6 +121,7 @@ tf.keras.utils.plot_model(model.keras_model,
 # Either set a specific path or find last trained weights
 # model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 model_path = model.find_last()
+# model_path = r"log_voc/model/voc20201212T1819/faster_rcnn_voc_0010.h5"
 
 # Load trained weights
 print("Loading weights from ", model_path)
@@ -173,7 +139,7 @@ log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
 visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-                            dataset_train.class_names, figsize=(8, 8))
+                            dataset_train.class_names, ax=get_ax())
 
 results = model.detect([original_image], verbose=1)
 
@@ -186,8 +152,12 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Compute VOC-Style mAP @ IoU=0.5
 # Running on 10 images. Increase for better accuracy.
 
-image_ids = np.random.choice(dataset_val.image_ids, 10)
+# image_ids = np.random.choice(dataset_val.image_ids, 10)
+image_ids = dataset_val.image_ids
+print("Total: ", len(image_ids))
+
 APs = []
+t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
@@ -200,6 +170,8 @@ for image_id in image_ids:
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
+t2 = time.time()
     
 print("mAP: ", np.mean(APs))
+print('Time: %6.2fs'%(t2-t1))  
 

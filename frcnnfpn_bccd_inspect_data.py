@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Inspect Training Data for VOC Dataset
+Faster R-CNN - Inspect Training Data
+Inspect and visualize data loading and pre-processing code.
+
+Refer: MaskRcnn code
+(https://github.com/matterport/Mask_RCNN)
 
 @author: Jacky Gao
-@date: Sun Dec 13 21:45:44 2020
+@date: Thu Dec 10 02:16:17 2020
 """
 
 import random
@@ -11,46 +15,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-# Import Mask RCNN
-from frcnn import utils
-from frcnn import model as modellib
-from frcnn import visualize
-from frcnn.visualize import display_images
-from frcnn.model import log
+from frcnnfpn import utils
+from frcnnfpn import model as modellib
+from frcnnfpn import visualize
+from frcnnfpn.visualize import display_images
+from frcnnfpn.model import log
 
-# Import sample module
-from frcnn.samples.voc import VocConfig
-from frcnn.samples.voc import VocDataset
+from frcnnfpn.samples.bccd import BccdConfig
+from frcnnfpn.samples.bccd import BccdDataset
 
-
-def get_ax(rows=1, cols=1, size=6):
-    """Return a Matplotlib Axes array to be used in
-    all visualizations in the notebook. Provide a
-    central point to control graph sizes.
-     
-    Change the default size attribute to control the size
-    of rendered images
-    """
-    _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
-    return ax
+def get_ax(rows=1, cols=1, size=5):
+    return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
 
 #%% Configurations
-class VocConfig(VocConfig):
-    NAME = "voc"
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 100
-    NUM_CLASSES = 1 + 20  # background + VOC 20 classes
-    
-config = VocConfig()
+config = BccdConfig()
 config.display()
-
-dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
 
 
 #%% Dataset
+dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
+
 # Load dataset
-dataset = VocDataset()
+dataset = BccdDataset()
 dataset.load_voc(dataset_dir, "trainval")
 
 # Must call before using the dataset
@@ -97,27 +84,24 @@ image_id = np.random.choice(dataset.image_ids, 1)[0]
 image = dataset.load_image(image_id)
 bbox, class_ids = dataset.load_bbox(image_id)
 original_shape = image.shape
-visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_ax())
 
-image_new, window, scale, padding, _ = utils.resize_image(
+# Resize
+image, window, scale, padding, _ = utils.resize_image(
     image, 
     min_dim=config.IMAGE_MIN_DIM, 
     max_dim=config.IMAGE_MAX_DIM,
     mode=config.IMAGE_RESIZE_MODE)
 
 # Load Bounding box
-bbox = utils.resize_bbox(
-    bbox, window, scale, mode=config.IMAGE_RESIZE_MODE)
-
 
 # Display image and additional stats
 print("image_id: ", image_id, dataset.image_reference(image_id))
 print("Original shape: ", original_shape)
-log("image", image_new)
+log("image", image)
 log("class_ids", class_ids)
 log("bbox", bbox)
 # Display image and instances
-visualize.display_instances(image_new, bbox, class_ids, dataset.class_names, ax=get_ax())
+visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_ax())
 
 
 #%% Anchors
@@ -323,6 +307,4 @@ if random_rois:
         total += positive_rois
         print("{:5} {:5.2f}".format(positive_rois, positive_rois/ids.shape[1]))
     print("Average percent: {:.2f}".format(total/(limit*ids.shape[1])))
-
-
 
