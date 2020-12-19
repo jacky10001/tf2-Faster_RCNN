@@ -22,7 +22,7 @@ from frcnn.samples.voc import VocDataset
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_voc'
+LOG_ROOT = 'log_frcnn_voc'
 MODEL_DIR = os.path.join(LOG_ROOT,'weights')
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -61,9 +61,8 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model,
-                          to_file=os.path.join(LOG_ROOT,'archi_training.png'),
-                          show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
+
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
@@ -79,9 +78,8 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model,
-                          to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
-                          show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show_shapes=True)
+
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights

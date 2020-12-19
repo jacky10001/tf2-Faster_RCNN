@@ -123,5 +123,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-pretrained_model/*.h5
+frcnn*/pretrained_model/*.h5
 log*/
+frcnn*/log*/

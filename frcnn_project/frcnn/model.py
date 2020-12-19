@@ -1,10 +1,8 @@
+# -*- coding: utf-8 -*-
 """
-Faster R-CNN
-The main Faster R-CNN model implementation.
 
-Copyright (c) 2017 Matterport, Inc.
-Licensed under the MIT License (see LICENSE for details)
-Written by Waleed Abdulla
+@author: Jacky Gao
+@date: Fri Dec 18 03:13:28 2020
 """
 
 import os
@@ -23,17 +21,15 @@ print('TF.KERAS version:', keras.__version__)
 tf.compat.v1.disable_eager_execution()
 
 from . import utils
+from . import mycallback
 
 from .data import data_generator
 
-from .core.backbone import resnet_graph
-from .core.roi_align import PyramidROIAlign
+from .core.roi_align import ROIAlign
 from .core.proposal import ProposalLayer
 from .core.detect import DetectionTargetLayer
 from .core.detect import DetectionLayer
 
-from .core.common import BatchNorm
-from .core.common import compute_backbone_shapes
 from .core.common import compose_image_meta
 from .core.common import mold_image
 from .core.common import parse_image_meta_graph
@@ -43,18 +39,6 @@ from .core.losses import rpn_class_loss_graph
 from .core.losses import rpn_bbox_loss_graph
 from .core.losses import frcnn_class_loss_graph
 from .core.losses import frcnn_bbox_loss_graph
-
-
-class AnchorsLayer(KL.Layer):
-    def __init__(self, **kwargs):
-        super(AnchorsLayer, self).__init__(**kwargs)
-        
-    def call(self, anchor):
-        return anchor[0]
-    
-    def get_config(self) :
-        config = super(AnchorsLayer, self).get_config()
-        return config
 
 
 ############################################################
@@ -74,6 +58,18 @@ def log(text, array=None):
             text += ("min: {:10}  max: {:10}".format("",""))
         text += "  {}".format(array.dtype)
     print(text)
+
+
+class AnchorsLayer(KL.Layer):
+    def __init__(self, **kwargs):
+        super(AnchorsLayer, self).__init__(**kwargs)
+        
+    def call(self, anchor):
+        return anchor[0]
+    
+    def get_config(self) :
+        config = super(AnchorsLayer, self).get_config()
+        return config
 
 
 ############################################################
@@ -107,11 +103,11 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
 
     # Reshape to [batch, anchors, 2]
     rpn_class_logits = KL.Lambda(
-        lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]))(x)
-
+        lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]), name="rpn_class_XX")(x)
+    
     # Softmax on last dimension of BG/FG.
     rpn_probs = KL.Activation(
-        "softmax", name="rpn_class_xxx")(rpn_class_logits)
+        "softmax", name="rpn_probs_XX")(rpn_class_logits)
 
     # Bounding box refinement. [batch, H, W, anchors per location * depth]
     # where depth is [x, y, log(w), log(h)]
@@ -119,7 +115,8 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
                   activation='linear', name='rpn_bbox_pred')(shared)
 
     # Reshape to [batch, anchors, 4]
-    rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 4]))(x)
+    rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 4]),
+                         name="rpn_bbox_XX")(x)
 
     return [rpn_class_logits, rpn_probs, rpn_bbox]
 
@@ -147,11 +144,10 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
 
 
 ############################################################
-#  Feature Pyramid Network Heads
+#   Heads Classifier
 ############################################################
 
-def fpn_classifier_graph(rois, feature_maps, image_meta,
-                         pool_size, num_classes, train_bn=True,
+def head_classifier_graph(rois, features, image_meta, pool_size, num_classes,
                          fc_layers_size=1024):
     """Builds the computation graph of the feature pyramid network classifier
     and regressor heads.
@@ -163,7 +159,6 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     image_meta: [batch, (meta data)] Image details. See compose_image_meta()
     pool_size: The width of the square feature map generated from ROI Pooling.
     num_classes: number of classes, which determines the depth of the results
-    train_bn: Boolean. Train or freeze Batch Norm layers
     fc_layers_size: Size of the 2 FC layers
 
     Returns:
@@ -174,25 +169,26 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     """
     # ROI Pooling
     # Shape: [batch, num_rois, POOL_SIZE, POOL_SIZE, channels]
-    x = PyramidROIAlign([pool_size, pool_size],
-                        name="roi_align_classifier")([rois, image_meta] + feature_maps)
+    x = ROIAlign([pool_size, pool_size],
+                 name="roi_align_classifier")([rois, image_meta, features])
+    # x = KL.TimeDistributed( KL.GlobalAveragePooling2D())(x)
+    # x = KL.TimeDistributed(KL.Dense(fc_layers_size))(x)
+    # x = KL.Activation('relu')(x)
     # Two 1024 FC layers (implemented with Conv2D for consistency)
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (pool_size, pool_size), padding="valid"),
                            name="frcnn_class_conv1")(x)
-    x = KL.TimeDistributed(BatchNorm(), name='frcnn_class_bn1')(x, training=train_bn)
+    x = KL.TimeDistributed(KL.BatchNormalization(), name='frcnn_class_bn1')(x)
     x = KL.Activation('relu')(x)
-    x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (1, 1)),
-                           name="frcnn_class_conv2")(x)
-    x = KL.TimeDistributed(BatchNorm(), name='frcnn_class_bn2')(x, training=train_bn)
+    x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (1, 1)), name="frcnn_class_conv2")(x)
+    x = KL.TimeDistributed(KL.BatchNormalization(), name='frcnn_class_bn2')(x)
     x = KL.Activation('relu')(x)
-
     shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
                        name="pool_squeeze")(x)
-
+    
     # Classifier head
     frcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
                                             name='frcnn_class_logits')(shared)
-    mrcnn_probs = KL.TimeDistributed(KL.Activation("softmax"),
+    frcnn_probs = KL.TimeDistributed(KL.Activation("softmax"),
                                      name="frcnn_class")(frcnn_class_logits)
 
     # BBox head
@@ -201,9 +197,11 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
                            name='frcnn_bbox_fc')(shared)
     # Reshape to [batch, num_rois, NUM_CLASSES, (dy, dx, log(dh), log(dw))]
     # s = K.int_shape(x)
+    
     frcnn_bbox = KL.Reshape((-1, num_classes, 4), name="frcnn_bbox")(x)
 
-    return frcnn_class_logits, mrcnn_probs, frcnn_bbox
+    return frcnn_class_logits, frcnn_probs, frcnn_bbox
+
 
 
 ############################################################
@@ -271,40 +269,14 @@ class FasterRCNN():
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
 
-        # Build the shared convolutional layers.
-        # Bottom-up Layers
-        # Returns a list of the last layers of each stage, 5 in total.
-        # Don't create the thead (stage 5), so we pick the 4th item in the list.
-        if callable(config.BACKBONE):
-            _, C2, C3, C4, C5 = config.BACKBONE(input_image, stage5=True,
-                                                train_bn=config.TRAIN_BN)
-        else:
-            _, C2, C3, C4, C5 = resnet_graph(input_image, config.BACKBONE,
-                                             stage5=True, train_bn=config.TRAIN_BN)
-        # Top-down Layers
-        # add assert to varify feature map sizes match what's in config
-        P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c5p5')(C5)
-        P4 = KL.Add(name="fpn_p4add")([
-            KL.UpSampling2D(size=(2, 2), name="fpn_p5upsampled")(P5),
-            KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c4p4')(C4)])
-        P3 = KL.Add(name="fpn_p3add")([
-            KL.UpSampling2D(size=(2, 2), name="fpn_p4upsampled")(P4),
-            KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c3p3')(C3)])
-        P2 = KL.Add(name="fpn_p2add")([
-            KL.UpSampling2D(size=(2, 2), name="fpn_p3upsampled")(P3),
-            KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (1, 1), name='fpn_c2p2')(C2)])
-        # Attach 3x3 conv to all P layers to get the final feature maps.
-        P2 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p2")(P2)
-        P3 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p3")(P3)
-        P4 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p4")(P4)
-        P5 = KL.Conv2D(config.TOP_DOWN_PYRAMID_SIZE, (3, 3), padding="SAME", name="fpn_p5")(P5)
-        # P6 is used for the 5th anchor scale in RPN. Generated by
-        # subsampling from P5 with stride of 2.
-        P6 = KL.MaxPooling2D(pool_size=(1, 1), strides=2, name="fpn_p6")(P5)
-
-        # Note that P6 is used in RPN, but not in the classifier heads.
-        rpn_feature_maps = [P2, P3, P4, P5, P6]
-        mrcnn_feature_maps = [P2, P3, P4, P5]
+        backbone = tf.keras.applications.ResNet50(
+            include_top=False,
+            # input_shape=[None, None, 3],
+            input_tensor=input_image
+        )
+        backbone.training = False
+        
+        features = backbone.outputs[0]
 
         # Anchors
         if mode == "training":
@@ -318,22 +290,10 @@ class FasterRCNN():
             anchors = input_anchors
 
         # RPN Model
-        rpn = build_rpn_model(config.RPN_ANCHOR_STRIDE,
-                              len(config.RPN_ANCHOR_RATIOS), config.TOP_DOWN_PYRAMID_SIZE)
-        # Loop through pyramid layers
-        layer_outputs = []  # list of lists
-        for p in rpn_feature_maps:
-            layer_outputs.append(rpn([p]))
-        # Concatenate layer outputs
-        # Convert from list of lists of level outputs to list of lists
-        # of outputs across levels.
-        # e.g. [[a1, b1, c1], [a2, b2, c2]] => [[a1, a2], [b1, b2], [c1, c2]]
-        output_names = ["rpn_class_logits", "rpn_class", "rpn_bbox"]
-        outputs = list(zip(*layer_outputs))
-        outputs = [KL.Concatenate(axis=1, name=n)(list(o))
-                   for o, n in zip(outputs, output_names)]
-
-        rpn_class_logits, rpn_class, rpn_bbox = outputs
+        rpn = build_rpn_model(config.RPN_ANCHOR_STRIDE, 
+                              len(config.RPN_ANCHOR_RATIOS)*len(config.RPN_ANCHOR_SCALES),
+                              2048)
+        rpn_class_logits, rpn_class, rpn_bbox = rpn(features)
 
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
@@ -374,10 +334,9 @@ class FasterRCNN():
             # Network Heads
             # verify that this handles zero padded ROIs
             frcnn_class_logits, frcnn_class, frcnn_bbox =\
-                fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta,
-                                     config.POOL_SIZE, config.NUM_CLASSES,
-                                     train_bn=config.TRAIN_BN,
-                                     fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
+                head_classifier_graph(rois, features, input_image_meta,
+                                      config.POOL_SIZE, config.NUM_CLASSES,
+                                      fc_layers_size=config.CLASSIF_FC_LAYERS_SIZE)
 
             # clean up (use tf.identify if necessary)
             output_rois = KL.Lambda(lambda x: x[1], name="output_rois")(rois)
@@ -406,10 +365,9 @@ class FasterRCNN():
             # Network Heads
             # Proposal classifier and BBox regressor heads
             frcnn_class_logits, frcnn_class, frcnn_bbox =\
-                fpn_classifier_graph(rpn_rois, mrcnn_feature_maps, input_image_meta,
-                                     config.POOL_SIZE, config.NUM_CLASSES,
-                                     train_bn=config.TRAIN_BN,
-                                     fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
+                head_classifier_graph(rpn_rois, features, input_image_meta,
+                                      config.POOL_SIZE, config.NUM_CLASSES,
+                                      fc_layers_size=config.CLASSIF_FC_LAYERS_SIZE)
 
             # Detections
             # output is [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in
@@ -431,7 +389,7 @@ class FasterRCNN():
             The path of the last checkpoint file
         """
         # Get directory names. Each directory corresponds to a model
-        dir_names = next(os.walk(self.model_dir))[1]
+        dir_names = next(os.walk(os.path.join(self.model_dir,'weights')))[1]
         key = self.config.NAME.lower()
         dir_names = filter(lambda f: f.startswith(key), dir_names)
         dir_names = sorted(dir_names)
@@ -441,7 +399,7 @@ class FasterRCNN():
                 errno.ENOENT,
                 "Could not find model directory under {}".format(self.model_dir))
         # Pick last directory
-        dir_name = os.path.join(self.model_dir, dir_names[-1])
+        dir_name = os.path.join(self.model_dir,'weights', dir_names[-1])
         # Find the last checkpoint
         checkpoints = next(os.walk(dir_name))[2]
         checkpoints = filter(lambda f: f.startswith("faster_rcnn"), checkpoints)
@@ -497,20 +455,6 @@ class FasterRCNN():
         # Update the log directory
         self.set_log_dir(filepath)
 
-    def get_imagenet_weights(self):
-        """Downloads ImageNet trained weights from Keras.
-        Returns path to weights file.
-        """
-        from keras.utils.data_utils import get_file
-        TF_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/'\
-                                 'releases/download/v0.2/'\
-                                 'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-        weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                TF_WEIGHTS_PATH_NO_TOP,
-                                cache_subdir='models',
-                                md5_hash='a268eb855778b3df3c7506639542a6af')
-        return weights_path
-
     def compile(self, learning_rate, momentum): #TODO
         """Gets the model ready for training. Adds losses, regularization, and
         metrics. Then calls the Keras compile() function.
@@ -554,43 +498,6 @@ class FasterRCNN():
             optimizer=optimizer,
             loss=[None] * len(self.keras_model.outputs))
 
-    def set_trainable(self, layer_regex, keras_model=None, indent=0, verbose=1):
-        """Sets model layers as trainable if their names match
-        the given regular expression.
-        """
-        # Print message on the first call (but not on recursive calls)
-        if verbose > 0 and keras_model is None:
-            log("Selecting layers to train")
-
-        keras_model = keras_model or self.keras_model
-
-        # In multi-GPU training, we wrap the model. Get layers
-        # of the inner model because they have the weights.
-        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
-            else keras_model.layers
-
-        for layer in layers:
-            # Is the layer a model?
-            if layer.__class__.__name__ == 'Model':
-                print("In model: ", layer.name)
-                self.set_trainable(
-                    layer_regex, keras_model=layer, indent=indent + 4)
-                continue
-
-            if not layer.weights:
-                continue
-            # Is it trainable?
-            trainable = bool(re.fullmatch(layer_regex, layer.name))
-            # Update layer. If layer is a container, update inner layer.
-            if layer.__class__.__name__ == 'TimeDistributed':
-                layer.layer.trainable = trainable
-            else:
-                layer.trainable = trainable
-            # Print trainable layer names
-            if trainable and verbose > 0:
-                log("{}{:20}   ({})".format(" " * indent, layer.name,
-                                            layer.__class__.__name__))
-
     def set_log_dir(self, model_path=None):
         """Sets the model log directory and epoch counter.
 
@@ -624,90 +531,45 @@ class FasterRCNN():
             self.config.NAME.lower(), now))
 
         # Path to save after each epoch. Include placeholders that get filled by Keras.
-        self.checkpoint_path = os.path.join(self.log_dir, "faster_rcnn_{}_*epoch*.h5".format(
+        self.checkpoint_path = os.path.join(self.log_dir, "weights", "faster_rcnn_{}_*epoch*.h5".format(
             self.config.NAME.lower()))
         self.checkpoint_path = self.checkpoint_path.replace(
             "*epoch*", "{epoch:04d}")
 
-    def train(self, train_dataset, val_dataset, learning_rate, epochs, layers,
-              custom_callbacks=None, augment=None):
-        """Train the model.
-        train_dataset, val_dataset: Training and validation Dataset objects.
-        learning_rate: The learning rate to train with
-        epochs: Number of training epochs. Note that previous training epochs
-                are considered to be done alreay, so this actually determines
-                the epochs to train in total rather than in this particaular
-                call.
-        layers: Allows selecting wich layers to train. It can be:
-            - A regular expression to match layer names to train
-            - One of these predefined values:
-              heads: The RPN, classifier
-              all: All the layers
-              3+: Train Resnet stage 3 and up
-              4+: Train Resnet stage 4 and up
-              5+: Train Resnet stage 5 and up
-        augmentation: Optional. An imgaug (https://github.com/aleju/imgaug)
-            augmentation. For example, passing imgaug.augmenters.Fliplr(0.5)
-            flips images right/left 50% of the time. You can pass complex
-            augmentations as well. This augmentation applies 50% of the
-            time, and when it does it flips images right/left half the time
-            and adds a Gaussian blur with a random sigma in range 0 to 5.
-
-                augmentation = imgaug.augmenters.Sometimes(0.5, [
-                    imgaug.augmenters.Fliplr(0.5),
-                    imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
-                ])
-	    custom_callbacks: Optional. Add custom callbacks to be called
-	        with the keras fit_generator method. Must be list of type keras.callbacks.
-        no_augmentation_sources: Optional. List of sources to exclude for
-            augmentation. A source is string that identifies a dataset and is
-            defined in the Dataset class.
-        """
+    def train(self, train_dataset, val_dataset, learning_rate, epochs):
         assert self.mode == "training", "Create model in training mode."
-
-        # Pre-defined layer regular expressions
-        layer_regex = {
-            # all layers but the backbone
-            "heads": r"(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            # From a specific Resnet stage and up
-            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            "5+": r"(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            # All layers
-            "all": ".*",
-        }
-        if layers in layer_regex.keys():
-            layers = layer_regex[layers]
 
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
-                                         batch_size=self.config.BATCH_SIZE,
-                                         augment=augment)
+                                         batch_size=self.config.BATCH_SIZE)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
 
         # Create log_dir if it does not exist
+        CKPT_DIR = os.path.join(self.log_dir,'weights')
+        TB_DIR = os.path.join(self.log_dir,'tensorboard')
         if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+            print('Create New Folder !!!!!')
+            os.makedirs(CKPT_DIR, exist_ok=True)
+            os.makedirs(TB_DIR, exist_ok=True)
 
         # Callbacks
         callbacks = [
-            keras.callbacks.TensorBoard(log_dir=self.log_dir,
-                                        histogram_freq=0, write_graph=True, write_images=False),
-            keras.callbacks.ModelCheckpoint(self.checkpoint_path,
-                                            verbose=0, save_weights_only=True),
-            keras.callbacks.CSVLogger(os.path.join(self.log_dir, "training_history.csv"),
-                                      separator=",", append=False),
+            keras.callbacks.TensorBoard(
+                log_dir=TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
+            
+            keras.callbacks.ModelCheckpoint(
+                self.checkpoint_path, verbose=0, save_weights_only=True),
+            
+            keras.callbacks.CSVLogger(
+                os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
+            
+            mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5)
         ]
-
-        # Add custom callbacks to the list
-        if custom_callbacks:
-            callbacks += custom_callbacks
 
         # Train
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
         log("Checkpoint Path: {}".format(self.checkpoint_path))
-        self.set_trainable(layers)
         self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
         
         # TODO
@@ -927,16 +789,17 @@ class FasterRCNN():
 
     def get_anchors(self, image_shape):
         """Returns anchor pyramid for the given image size."""
-        backbone_shapes = compute_backbone_shapes(self.config, image_shape)
+        image_shape = np.array(image_shape)
+        backbone_featuremap_shapes = image_shape / self.config.FEATUREMAP_RATIOS
         # Cache anchors and reuse if image shape is the same
         if not hasattr(self, "_anchor_cache"):
             self._anchor_cache = {}
         if not tuple(image_shape) in self._anchor_cache:
             # Generate Anchors
-            a = utils.generate_pyramid_anchors(
+            a = utils.generate_normal_anchors(
                 self.config.RPN_ANCHOR_SCALES,
                 self.config.RPN_ANCHOR_RATIOS,
-                backbone_shapes,
+                backbone_featuremap_shapes,
                 self.config.BACKBONE_STRIDES,
                 self.config.RPN_ANCHOR_STRIDE)
             # Keep a copy of the latest anchors in pixel coordinates because
@@ -1017,9 +880,9 @@ class FasterRCNN():
             assert o is not None
 
         # Build a Keras function to run parts of the computation graph
-        inputs = model.inputs
-        if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            inputs += [K.learning_phase()]
+        # inputs = model.inputs
+        # if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        #     inputs += [K.learning_phase()]
         kf = K.function(model.inputs, list(outputs.values()))
 
         # Prepare inputs
@@ -1036,8 +899,8 @@ class FasterRCNN():
         model_in = [molded_images, image_metas, anchors]
 
         # Run inference
-        if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
-            model_in.append(0.)
+        # if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        #     model_in.append(0.)
         outputs_np = kf(model_in)
 
         # Pack the generated Numpy arrays into a a dict and log the results.

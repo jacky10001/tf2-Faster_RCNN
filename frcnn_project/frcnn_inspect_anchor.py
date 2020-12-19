@@ -9,9 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from frcnn import utils
-from frcnn import model as modellib
-from frcnn import visualize
+from frcnn import utils, visualize
+from frcnn.core import common
 
 from frcnn.samples.voc import VocConfig
 from frcnn.samples.voc import VocDataset
@@ -23,8 +22,6 @@ def get_ax(rows=1, cols=1, size=6):
 
 #%% Configurations
 class VocConfig(VocConfig):
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 100
     IMAGE_MIN_DIM = 1024
     IMAGE_MAX_DIM = 1024
     
@@ -68,11 +65,11 @@ def generate_normal_anchors(scales, ratios, feature_shapes, feature_strides,
 
 config.RPN_ANCHOR_SCALES = [128,256,512]
 # Generate Anchors
-backbone_shapes = config.IMAGE_SHAPE[:2] / 16
+backbone_shapes = config.IMAGE_SHAPE[:2] / config.FEATUREMAP_RATIOS
 anchors = generate_normal_anchors(config.RPN_ANCHOR_SCALES, 
                                    config.RPN_ANCHOR_RATIOS,
                                    backbone_shapes,
-                                   config.BACKBONE_STRIDES[-3], 
+                                   config.BACKBONE_STRIDES, 
                                    config.RPN_ANCHOR_STRIDE)
 
 # get center anchor
@@ -87,7 +84,6 @@ level_center = int(center_anchor)
 
 colors = visualize.random_colors(3)
 # Generate Anchors
-backbone_shapes = modellib.compute_backbone_shapes(config, config.IMAGE_SHAPE)
 fig, ax = plt.subplots(1, figsize=(10, 10))
 im = ax.imshow(np.zeros((1024,1024)), cmap='gray')
 fig.colorbar(im)
