@@ -8,11 +8,13 @@ For implementation of Faster RCNN model
 - [x] Input Shapes dataset  
 - [x] Input BCCD dataset  
 - [x] Input voc 2017 data  
-- [ ] Inspect training results
 - [ ] Change backbone (Will use Keras application)  
 - [ ] Head layer reduce weights  
+- [ ] Inspect training results (performance)
 
 ## Tips  
+* Install package can follow [here](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/requirements.txt)  
+  I build environment to Python 3.6.6 by Anaconda  
 * Input data  
   * Modify config  
     **IMAGE_RESIZE_MODE = "none"**  
@@ -22,8 +24,6 @@ For implementation of Faster RCNN model
     
     **NUM_CLASSES**  
     Set number of classes of custom dataset  
-* Install package can follow [here](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/requirements.txt)  
-  I build environment to Python 3.6.6 by Anaconda  
 
 ## Refer
 PSACAL VOC 2007 dataset: [here](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/index.html)  
