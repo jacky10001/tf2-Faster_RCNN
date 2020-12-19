@@ -126,3 +126,4 @@ dmypy.json
 frcnn*/pretrained_model/*.h5
 log*/
 frcnn*/log*/
+frcnn_project/frcnn/mycallback.py
