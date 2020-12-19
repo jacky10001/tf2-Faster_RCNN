@@ -23,7 +23,7 @@ from frcnnfpn.samples.voc import VocDataset
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_voc'
+LOG_ROOT = 'log_frcnnfpn_voc'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 

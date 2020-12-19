@@ -28,7 +28,7 @@ from frcnnfpn.samples.bccd import BccdDataset
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_bccd'
+LOG_ROOT = 'log_frcnnfpn_bccd'
 MODEL_DIR = os.path.join(LOG_ROOT,'model')
 os.makedirs(MODEL_DIR, exist_ok=True)
 

@@ -18,6 +18,8 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers as KL
 from tensorflow.keras import models as KM
+print('TF version:', tf.__version__)
+print('TF.KERAS version:', keras.__version__)
 tf.compat.v1.disable_eager_execution()
 
 from . import utils
