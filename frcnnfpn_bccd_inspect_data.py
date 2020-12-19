@@ -15,11 +15,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from frcnnfpn import utils
-from frcnnfpn import model as modellib
-from frcnnfpn import visualize
-from frcnnfpn.visualize import display_images
+from frcnnfpn import data, utils, visualize
+from frcnnfpn.core import common
 from frcnnfpn.model import log
+from frcnnfpn.visualize import display_images
 
 from frcnnfpn.samples.bccd import BccdConfig
 from frcnnfpn.samples.bccd import BccdDataset
@@ -138,7 +137,7 @@ visualize.display_instances(image, bbox, class_ids, dataset.class_names, ax=get_
 # In this implementation we use an anchor stride of 2, which is different from the paper.
 
 # Generate Anchors
-backbone_shapes = modellib.compute_backbone_shapes(config, config.IMAGE_SHAPE)
+backbone_shapes = common.compute_backbone_shapes(config, config.IMAGE_SHAPE)
 anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES, 
                                          config.RPN_ANCHOR_RATIOS,
                                          backbone_shapes,
@@ -163,7 +162,7 @@ for l in range(num_levels):
 # Visualize anchors of one cell at the center of the feature map of a specific level.
 # Load and draw random image
 image_id = np.random.choice(dataset.image_ids, 1)[0]
-image, image_meta, _, _ = modellib.load_image_gt(dataset, config, image_id)
+image, image_meta, _, _ = data.load_image_gt(dataset, config, image_id)
 fig, ax = plt.subplots(1, figsize=(10, 10))
 ax.imshow(image)
 levels = len(backbone_shapes)
@@ -194,7 +193,7 @@ for level in range(levels):
 #%% Data Generator
 # Create data generator
 random_rois = 2000
-g = modellib.data_generator(
+g = data.data_generator(
     dataset, config, shuffle=True, random_rois=random_rois, 
     batch_size=4,
     detection_targets=True)
@@ -220,7 +219,7 @@ log("gt_class_ids", gt_class_ids)
 log("gt_boxes", gt_boxes)
 log("rpn_match", rpn_match, )
 log("rpn_bbox", rpn_bbox)
-image_id = modellib.parse_image_meta(image_meta)["image_id"][0]
+image_id = common.parse_image_meta(image_meta)["image_id"][0]
 print("image_id: ", image_id, dataset.image_reference(image_id))
 
 # Remove the last dim in mrcnn_class_ids. It's only added
@@ -232,7 +231,7 @@ mrcnn_class_ids = mrcnn_class_ids[:,:,0]
 b = 0
 
 # Restore original image (reverse normalization)
-sample_image = modellib.unmold_image(normalized_images[b], config)
+sample_image = common.unmold_image(normalized_images[b], config)
 
 # Compute anchor shifts.
 indices = np.where(rpn_match[b] == 1)[0]
@@ -297,7 +296,7 @@ if random_rois:
 # Check ratio of positive ROIs in a set of images.
 if random_rois:
     limit = 10
-    temp_g = modellib.data_generator(
+    temp_g = data.data_generator(
         dataset, config, shuffle=True, random_rois=10000, 
         batch_size=1, detection_targets=True)
     total = 0

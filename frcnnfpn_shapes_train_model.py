@@ -14,10 +14,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from frcnnfpn import utils
-from frcnnfpn import model as modellib
-from frcnnfpn import visualize
+from frcnnfpn import data, utils, visualize
+from frcnnfpn.core import common
 from frcnnfpn.model import log
+from frcnnfpn.model import FasterRCNN
 
 from frcnnfpn.samples.shapes import ShapesConfig
 from frcnnfpn.samples.shapes import ShapesDataset
@@ -61,8 +61,7 @@ for image_id in image_ids:
 
 #%% Create Model
 # Create model in training mode
-model = modellib.FasterRCNN(mode="training", config=config,
-                            model_dir=MODEL_DIR)
+model = FasterRCNN(mode="training", config=config, model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_training.png'),
                           show_shapes=True)
@@ -132,9 +131,7 @@ class InferenceConfig(ShapesConfig):
 inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
-model = modellib.FasterRCNN(mode="inference", 
-                            config=inference_config,
-                            model_dir=MODEL_DIR)
+model = FasterRCNN(mode="inference", config=inference_config, model_dir=MODEL_DIR)
 tf.keras.utils.plot_model(model.keras_model,
                           to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
                           show_shapes=True)
@@ -152,7 +149,7 @@ model.load_weights(model_path, by_name=True)
 #%% Test on a random image
 image_id = random.choice(dataset_val.image_ids)
 original_image, image_meta, gt_class_id, gt_bbox =\
-    modellib.load_image_gt(dataset_val, inference_config, image_id)
+    data.load_image_gt(dataset_val, inference_config, image_id)
 
 log("original_image", original_image)
 log("image_meta", image_meta)
@@ -178,8 +175,8 @@ APs = []
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
-        modellib.load_image_gt(dataset_val, inference_config, image_id)
-    molded_images = np.expand_dims(modellib.mold_image(image, inference_config), 0)
+        data.load_image_gt(dataset_val, inference_config, image_id)
+    molded_images = np.expand_dims(common.mold_image(image, inference_config), 0)
     # Run object detection
     results = model.detect([image], verbose=0)
     r = results[0]
