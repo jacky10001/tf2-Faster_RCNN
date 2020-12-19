@@ -75,7 +75,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     return loss
 
 
-def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
+def frcnn_class_loss_graph(target_class_ids, pred_class_logits,
                            active_class_ids):
     """Loss for the classifier head of Faster RCNN.
 
@@ -111,7 +111,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
     return loss
 
 
-def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
+def frcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     """Loss for Faster R-CNN bounding box refinement.
 
     target_bbox: [batch, num_rois, (dy, dx, log(dh), log(dw))]

@@ -39,8 +39,8 @@ from .core.common import norm_boxes_graph
 
 from .core.losses import rpn_class_loss_graph
 from .core.losses import rpn_bbox_loss_graph
-from .core.losses import mrcnn_class_loss_graph
-from .core.losses import mrcnn_bbox_loss_graph
+from .core.losses import frcnn_class_loss_graph
+from .core.losses import frcnn_bbox_loss_graph
 
 
 class AnchorsLayer(KL.Layer):
@@ -176,32 +176,32 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
                         name="roi_align_classifier")([rois, image_meta] + feature_maps)
     # Two 1024 FC layers (implemented with Conv2D for consistency)
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (pool_size, pool_size), padding="valid"),
-                           name="mrcnn_class_conv1")(x)
-    x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn1')(x, training=train_bn)
+                           name="frcnn_class_conv1")(x)
+    x = KL.TimeDistributed(BatchNorm(), name='frcnn_class_bn1')(x, training=train_bn)
     x = KL.Activation('relu')(x)
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (1, 1)),
-                           name="mrcnn_class_conv2")(x)
-    x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn2')(x, training=train_bn)
+                           name="frcnn_class_conv2")(x)
+    x = KL.TimeDistributed(BatchNorm(), name='frcnn_class_bn2')(x, training=train_bn)
     x = KL.Activation('relu')(x)
 
     shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
                        name="pool_squeeze")(x)
 
     # Classifier head
-    mrcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
-                                            name='mrcnn_class_logits')(shared)
+    frcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
+                                            name='frcnn_class_logits')(shared)
     mrcnn_probs = KL.TimeDistributed(KL.Activation("softmax"),
-                                     name="mrcnn_class")(mrcnn_class_logits)
+                                     name="frcnn_class")(frcnn_class_logits)
 
     # BBox head
     # [batch, num_rois, NUM_CLASSES * (dy, dx, log(dh), log(dw))]
     x = KL.TimeDistributed(KL.Dense(num_classes * 4, activation='linear'),
-                           name='mrcnn_bbox_fc')(shared)
+                           name='frcnn_bbox_fc')(shared)
     # Reshape to [batch, num_rois, NUM_CLASSES, (dy, dx, log(dh), log(dw))]
     # s = K.int_shape(x)
-    mrcnn_bbox = KL.Reshape((-1, num_classes, 4), name="mrcnn_bbox")(x)
+    frcnn_bbox = KL.Reshape((-1, num_classes, 4), name="frcnn_bbox")(x)
 
-    return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox
+    return frcnn_class_logits, mrcnn_probs, frcnn_bbox
 
 
 ############################################################
@@ -371,7 +371,7 @@ class FasterRCNN():
 
             # Network Heads
             # verify that this handles zero padded ROIs
-            mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
+            frcnn_class_logits, frcnn_class, frcnn_bbox =\
                 fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,
                                      train_bn=config.TRAIN_BN,
@@ -385,10 +385,10 @@ class FasterRCNN():
                 [input_rpn_match, rpn_class_logits])
             rpn_bbox_loss = KL.Lambda(lambda x: rpn_bbox_loss_graph(config, *x), name="rpn_bbox_loss")(
                 [input_rpn_bbox, input_rpn_match, rpn_bbox])
-            class_loss = KL.Lambda(lambda x: mrcnn_class_loss_graph(*x), name="mrcnn_class_loss")(
-                [target_class_ids, mrcnn_class_logits, active_class_ids])
-            bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
-                [target_bbox, target_class_ids, mrcnn_bbox])
+            class_loss = KL.Lambda(lambda x: frcnn_class_loss_graph(*x), name="frcnn_class_loss")(
+                [target_class_ids, frcnn_class_logits, active_class_ids])
+            bbox_loss = KL.Lambda(lambda x: frcnn_bbox_loss_graph(*x), name="frcnn_bbox_loss")(
+                [target_bbox, target_class_ids, frcnn_bbox])
 
             # Model
             inputs = [input_image, input_image_meta,
@@ -396,14 +396,14 @@ class FasterRCNN():
             if not config.USE_RPN_ROIS:
                 inputs.append(input_rois)
             outputs = [rpn_class_logits, rpn_class, rpn_bbox,
-                       mrcnn_class_logits, mrcnn_class, mrcnn_bbox,
+                       frcnn_class_logits, frcnn_class, frcnn_bbox,
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss]
             model = KM.Model(inputs, outputs, name='faster_rcnn')
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
-            mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
+            frcnn_class_logits, frcnn_class, frcnn_bbox =\
                 fpn_classifier_graph(rpn_rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,
                                      train_bn=config.TRAIN_BN,
@@ -412,18 +412,13 @@ class FasterRCNN():
             # Detections
             # output is [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in
             # normalized coordinates
-            detections = DetectionLayer(config, name="mrcnn_detection")(
-                [rpn_rois, mrcnn_class, mrcnn_bbox, input_image_meta])
+            detections = DetectionLayer(config, name="frcnn_detection")(
+                [rpn_rois, frcnn_class, frcnn_bbox, input_image_meta])
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
-                             [detections, mrcnn_class, mrcnn_bbox,
+                             [detections, frcnn_class, frcnn_bbox,
                                  rpn_rois, rpn_class, rpn_bbox],
                              name='faster_rcnn')
-
-        # Add multi-GPU support.
-        if config.GPU_COUNT > 1:
-            from mrcnn.parallel_model import ParallelModel
-            model = ParallelModel(model, config.GPU_COUNT)
 
         return model
 
@@ -528,7 +523,7 @@ class FasterRCNN():
         # self.keras_model._per_input_losses = {}
         loss_names = [
             "rpn_class_loss",  "rpn_bbox_loss",
-            "mrcnn_class_loss", "mrcnn_bbox_loss"]
+            "frcnn_class_loss", "frcnn_bbox_loss"]
         for name in loss_names:
             layer = self.keras_model.get_layer(name)
             loss = tf.reduce_mean(layer.output, keepdims=True) * self.config.LOSS_WEIGHTS.get(name, 1.)
@@ -545,7 +540,7 @@ class FasterRCNN():
         # Add metrics for losses
         metric_names = [
             "rpn_class_loss",  "rpn_bbox_loss",
-            "mrcnn_class_loss", "mrcnn_bbox_loss"]
+            "frcnn_class_loss", "frcnn_bbox_loss"]
         for name in metric_names:
             layer = self.keras_model.get_layer(name)
             self.keras_model.metrics_names.append(name)
@@ -671,11 +666,11 @@ class FasterRCNN():
         # Pre-defined layer regular expressions
         layer_regex = {
             # all layers but the backbone
-            "heads": r"(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
+            "heads": r"(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
             # From a specific Resnet stage and up
-            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
-            "5+": r"(res5.*)|(bn5.*)|(mrcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
+            "3+": r"(res3.*)|(bn3.*)|(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
+            "4+": r"(res4.*)|(bn4.*)|(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
+            "5+": r"(res5.*)|(bn5.*)|(frcnn\_.*)|(rpn\_.*)|(fpn\_.*)",
             # All layers
             "all": ".*",
         }
