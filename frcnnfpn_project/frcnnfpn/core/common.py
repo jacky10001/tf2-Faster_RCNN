@@ -302,13 +302,13 @@ def refine_detections_graph(rois, probs, deltas, window, config):
 
     # 2. Map over class IDs
     nms_keep = tf.map_fn(nms_keep_map, unique_pre_nms_class_ids,
-                         dtype=tf.int64)
+                         fn_output_signature=tf.int64)
     # 3. Merge results into one list, and remove -1 padding
     nms_keep = tf.reshape(nms_keep, [-1])
     nms_keep = tf.gather(nms_keep, tf.where(nms_keep > -1)[:, 0])
     # 4. Compute intersection between keep and nms_keep
     keep = tf.sets.intersection(tf.expand_dims(keep, 0),
-                                    tf.expand_dims(nms_keep, 0))
+                                tf.expand_dims(nms_keep, 0))
     keep = tf.sparse.to_dense(keep)[0]
     # Keep top detections
     roi_count = config.DETECTION_MAX_INSTANCES
