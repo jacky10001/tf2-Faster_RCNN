@@ -5,7 +5,6 @@
 @date: Fri Dec 18 03:25:13 2020
 """
 
-import os
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,7 +35,7 @@ class ShapesConfig(ShapesConfig):
     
     IMAGES_PER_GPU = 5
     LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 50
 
 config = ShapesConfig()
 # config.display()
@@ -81,7 +80,7 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show_shapes=True)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
 
 model_path = model.find_last()
 # model_path = os.path.join("log_shapes",
@@ -90,7 +89,6 @@ model_path = model.find_last()
 #                           "faster_rcnn_shapes_0001.h5")
 
 # Load trained weights
-print("Loading weights from ", model_path)
 model.load_weights(model_path, by_name=True)
 
 
@@ -137,9 +135,11 @@ for image_id in image_ids:
     image, image_meta, gt_class_id, gt_bbox =\
         data.load_image_gt(dataset_val, inference_config, image_id)
     molded_images = np.expand_dims(common.mold_image(image, inference_config), 0)
+    
     # Run object detection
     results = model.detect([image], verbose=0)
     r = results[0]
+    
     # Compute AP
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])

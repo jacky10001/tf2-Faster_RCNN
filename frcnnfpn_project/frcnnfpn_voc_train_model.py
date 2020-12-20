@@ -23,11 +23,8 @@ from frcnnfpn.samples.voc import VocDataset
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_frcnnfpn_voc'
-MODEL_DIR = os.path.join(LOG_ROOT,'model')
-os.makedirs(MODEL_DIR, exist_ok=True)
-
 # Local path to trained weights file
+LOG_ROOT = 'log_frcnnfpn_voc'
 COCO_MODEL_PATH = os.path.join('pretrained_model','mask_rcnn_coco.h5')
 
 
@@ -61,10 +58,8 @@ for image_id in image_ids:
 
 #%% Create Model
 # Create model in training mode
-model = FasterRCNN(mode="training", config=config, model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model,
-                          to_file=os.path.join(LOG_ROOT,'archi_training.png'),
-                          show_shapes=True)
+model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
 
 
 #%% Which weights to start with?
@@ -109,10 +104,8 @@ class InferenceConfig(VocConfig):
 inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
-model = FasterRCNN(mode="inference", config=inference_config, model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model,
-                          to_file=os.path.join(LOG_ROOT,'archi_inference.png'),
-                          show_shapes=True)
+model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights

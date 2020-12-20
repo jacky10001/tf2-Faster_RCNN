@@ -5,7 +5,7 @@
 @date: Fri Dec 18 04:39:21 2020
 """
 
-import os
+import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,8 +23,6 @@ def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
 LOG_ROOT = 'log_frcnn_voc'
-MODEL_DIR = os.path.join(LOG_ROOT,'weights')
-os.makedirs(MODEL_DIR, exist_ok=True)
 
 
 #%% Configurations
@@ -38,7 +36,7 @@ class VocConfig(VocConfig):
     
     IMAGES_PER_GPU = 5
     LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 2500
+    STEPS_PER_EPOCH = 1000
     
 config = VocConfig()
 # config.display()
@@ -57,10 +55,18 @@ dataset_val = VocDataset()
 dataset_val.load_voc(dataset_dir, "test")
 dataset_val.prepare()
 
+# Load and display random samples
+# image_ids = np.random.choice(dataset_train.image_ids, 1)
+# for image_id in image_ids:
+#     image = dataset_train.load_image(image_id)
+#     bbox, class_ids = dataset_train.load_bbox(image_id)
+#     # visualize.display_image(image)
+#     visualize.display_instances(image, bbox, class_ids, dataset_train.class_names, ax=get_ax())
+
 
 #%% Create Model
 # Create model in training mode
-model = FasterRCNN(mode="training", config=config, model_dir=MODEL_DIR)
+model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
 tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
 
 
@@ -77,8 +83,8 @@ class InferenceConfig(VocConfig):
 inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
-model = FasterRCNN(mode="inference", config=inference_config, model_dir=MODEL_DIR)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show_shapes=True)
+model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
+tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
 
 
 # Get path to saved weights
@@ -87,7 +93,6 @@ tf.keras.utils.plot_model(model.keras_model, to_file='archi_inference.png', show
 model_path = model.find_last()
 
 # Load trained weights
-print("Loading weights from ", model_path)
 model.load_weights(model_path, by_name=True)
 
 
@@ -116,7 +121,13 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Running on 10 images. Increase for better accuracy.
 
 image_ids = np.random.choice(dataset_val.image_ids, 10)
+
+image_ids = dataset_val.image_ids
+
+
+print(len(image_ids))
 APs = []
+t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
@@ -129,6 +140,7 @@ for image_id in image_ids:
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
-    
-print("mAP: ", np.mean(APs))
+t2 = time.time()
+print('time:', t2-t1)
+print("\nmAP: ", np.mean(APs))
 
