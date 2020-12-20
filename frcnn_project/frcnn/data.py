@@ -14,15 +14,12 @@ from .core.common import mold_image
 from .core.common import compose_image_meta
 
 
-# TODO
+# TODO - Can load 'image' and 'GT data' from 'image_id'
 def load_image_gt(dataset, config, image_id, augment=False):
     """Load and return ground truth data for an image (image, bounding boxes).
 
     augment: (deprecated. Use augmentation instead). If true, apply random
         image augmentation. Currently, only horizontal flipping is offered.
-    augmentation: Optional. An imgaug (https://github.com/aleju/imgaug) augmentation.
-        For example, passing imgaug.augmenters.Fliplr(0.5) flips images
-        right/left 50% of the time.
 
     Returns:
     image: [height, width, 3]
@@ -301,9 +298,6 @@ def data_generator(dataset, config, shuffle=True, augment=False, batch_size=1):
     shuffle: If True, shuffles the samples before every epoch
     augment: (deprecated. Use augmentation instead). If true, apply random
         image augmentation. Currently, only horizontal flipping is offered.
-    random_rois: If > 0 then generate proposals to be used to train the
-                 network classifier head. Useful if training
-                 the Faster RCNN part without the RPN.
     batch_size: How many images to return in each call
 
     Returns a Python generator. Upon calling next() on it, the
@@ -334,7 +328,8 @@ def data_generator(dataset, config, shuffle=True, augment=False, batch_size=1):
     # Keras requires a generator to run indefinitely.
     while True:
         try:
-            # Increment index to pick next image. Shuffle if at the start of an epoch.
+            # 這行會計算目前到第幾筆資料  到了最後一筆資料將變回 0
+            # 變為 0 時，則重新進行打亂
             image_index = (image_index + 1) % len(image_ids)
             if shuffle and image_index == 0:
                 np.random.shuffle(image_ids)
