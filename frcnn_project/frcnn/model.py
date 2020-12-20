@@ -13,6 +13,7 @@ from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras import callbacks
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers as KL
 from tensorflow.keras import models as KM
@@ -389,7 +390,7 @@ class FasterRCNN():
             The path of the last checkpoint file
         """
         # Get directory names. Each directory corresponds to a model
-        dir_names = next(os.walk(os.path.join(self.model_dir,'weights')))[1]
+        dir_names = next(os.walk(os.path.join(self.model_dir)))[1]
         key = self.config.NAME.lower()
         dir_names = filter(lambda f: f.startswith(key), dir_names)
         dir_names = sorted(dir_names)
@@ -399,7 +400,7 @@ class FasterRCNN():
                 errno.ENOENT,
                 "Could not find model directory under {}".format(self.model_dir))
         # Pick last directory
-        dir_name = os.path.join(self.model_dir,'weights', dir_names[-1])
+        dir_name = os.path.join(self.model_dir, dir_names[-1], "weights")
         # Find the last checkpoint
         checkpoints = next(os.walk(dir_name))[2]
         checkpoints = filter(lambda f: f.startswith("faster_rcnn"), checkpoints)
@@ -512,18 +513,21 @@ class FasterRCNN():
 
         # If we have a model path with date and epochs use them
         if model_path:
+            print("Loading weights from ", model_path)
             # Continue from we left of. Get epoch and date from the file name
             # A sample model path might look like:
             # \path\to\logs\coco20171029T2315\faster_rcnn_coco_0001.h5 (Windows)
             # /path/to/logs/coco20171029T2315/faster_rcnn_coco_0001.h5 (Linux)
-            regex = r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})[/\\]faster\_rcnn\_[\w-]+(\d{4})\.h5"
+            regex =\
+                r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})"+ \
+                  r"[/\\]weights[/\\]faster\_rcnn\_[\w-]+(\d{4})\.h5"
             m = re.match(regex, model_path)
             if m:
-                now = datetime.datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
-                                        int(m.group(4)), int(m.group(5)))
+                Y, m, d, H, M, epoch = [int(i) for i in m.groups()]
+                now = datetime.datetime(Y, m, d, H, M)
                 # Epoch number in file is 1-based, and in Keras code it's 0-based.
                 # So, adjust for that then increment by one to start from the next epoch
-                self.epoch = int(m.group(6)) - 1 + 1
+                self.epoch = epoch - 1 + 1
                 print('Re-starting from epoch %d' % self.epoch)
 
         # Directory for training logs
@@ -554,17 +558,18 @@ class FasterRCNN():
             os.makedirs(TB_DIR, exist_ok=True)
 
         # Callbacks
-        callbacks = [
-            keras.callbacks.TensorBoard(
+        callbacks_list = [
+            callbacks.TensorBoard(
                 log_dir=TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
             
-            keras.callbacks.ModelCheckpoint(
+            callbacks.ModelCheckpoint(
                 self.checkpoint_path, verbose=0, save_weights_only=True),
             
-            keras.callbacks.CSVLogger(
+            callbacks.CSVLogger(
                 os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
             
-            mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5)
+            mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
+            
         ]
 
         # Train
@@ -578,7 +583,7 @@ class FasterRCNN():
             initial_epoch=self.epoch,
             epochs=epochs,
             steps_per_epoch=self.config.STEPS_PER_EPOCH,
-            callbacks=callbacks,
+            callbacks=callbacks_list,
             validation_data=val_generator,
             validation_steps=self.config.VALIDATION_STEPS,
         )

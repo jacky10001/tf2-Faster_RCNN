@@ -441,7 +441,7 @@ class FasterRCNN():
                 errno.ENOENT,
                 "Could not find model directory under {}".format(self.model_dir))
         # Pick last directory
-        dir_name = os.path.join(self.model_dir, dir_names[-1])
+        dir_name = os.path.join(self.model_dir, dir_names[-1], "weights")
         # Find the last checkpoint
         checkpoints = next(os.walk(dir_name))[2]
         checkpoints = filter(lambda f: f.startswith("faster_rcnn"), checkpoints)
@@ -605,18 +605,21 @@ class FasterRCNN():
 
         # If we have a model path with date and epochs use them
         if model_path:
+            print("Loading weights from ", model_path)
             # Continue from we left of. Get epoch and date from the file name
             # A sample model path might look like:
             # \path\to\logs\coco20171029T2315\faster_rcnn_coco_0001.h5 (Windows)
             # /path/to/logs/coco20171029T2315/faster_rcnn_coco_0001.h5 (Linux)
-            regex = r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})[/\\]faster\_rcnn\_[\w-]+(\d{4})\.h5"
+            regex =\
+                r".*[/\\][\w-]+(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})"+ \
+                  r"[/\\]weights[/\\]faster\_rcnn\_[\w-]+(\d{4})\.h5"
             m = re.match(regex, model_path)
             if m:
-                now = datetime.datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
-                                        int(m.group(4)), int(m.group(5)))
+                Y, m, d, H, M, epoch = [int(i) for i in m.groups()]
+                now = datetime.datetime(Y, m, d, H, M)
                 # Epoch number in file is 1-based, and in Keras code it's 0-based.
                 # So, adjust for that then increment by one to start from the next epoch
-                self.epoch = int(m.group(6)) - 1 + 1
+                self.epoch = epoch - 1 + 1
                 print('Re-starting from epoch %d' % self.epoch)
 
         # Directory for training logs
@@ -624,7 +627,7 @@ class FasterRCNN():
             self.config.NAME.lower(), now))
 
         # Path to save after each epoch. Include placeholders that get filled by Keras.
-        self.checkpoint_path = os.path.join(self.log_dir, "faster_rcnn_{}_*epoch*.h5".format(
+        self.checkpoint_path = os.path.join(self.log_dir, "weights", "faster_rcnn_{}_*epoch*.h5".format(
             self.config.NAME.lower()))
         self.checkpoint_path = self.checkpoint_path.replace(
             "*epoch*", "{epoch:04d}")
@@ -699,7 +702,7 @@ class FasterRCNN():
                 log_dir=TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
             
             keras.callbacks.ModelCheckpoint(
-                os.path.join(CKPT_DIR,self.checkpoint_path), verbose=0, save_weights_only=True),
+                self.checkpoint_path, verbose=0, save_weights_only=True),
             
             keras.callbacks.CSVLogger(
                 os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
