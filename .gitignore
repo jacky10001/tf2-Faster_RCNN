@@ -132,4 +132,5 @@ frcnn_project/archi_det.png
 frcnn_project/save_console
 frcnnfpn_project/archi_tra.png
 frcnnfpn_project/archi_det.png
+dev_test
 frcnn_project/frcnn_jerry_train_model.py
