@@ -8,8 +8,8 @@ For implementation of Faster RCNN model
 - [x] Input Shapes dataset  
 - [x] Input BCCD dataset  
 - [x] Input voc 2017 data  
-- [ ] Change backbone (Will use Keras application)  
-- [ ] Head layer reduce weights  
+- [x] Change backbone (Will use Keras application)  
+- [x] Head layer reduce weights  
 - [ ] Inspect training results (performance)
 
 ## Tips  
