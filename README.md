@@ -1,6 +1,5 @@
 # Faster RCNN on TF2
-This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN)
-For implementation of Faster RCNN model  
+This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN) for implementation of Faster RCNN model  
 
 
 ## Folder
@@ -14,7 +13,7 @@ For implementation of Faster RCNN model
 * Use Spyder IDE edit my code  
 * GTX 1060 (Laptop)
 * CUDA 10.1 + cudnn v8.0.4.30  
-* RAM: 16GB
+* RAM: 16GB  
 The code can run on tf2.3  
 
 
