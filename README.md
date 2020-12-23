@@ -4,8 +4,8 @@ For implementation of Faster RCNN model
 
 
 ## Folder
-frcnn_project (main work): for change backbone network from Keras Applications model  
-frcnnfpn_project: use pre-training model from matterport/Mask_RCNN [weights](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5)  
+**frcnn_project (main work)**: for change backbone network from Keras Applications model  
+**frcnnfpn_project**: use pre-training model from matterport/Mask_RCNN [weights](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5)  
 
 
 ## setup
@@ -42,7 +42,7 @@ The code can run on tf2.3
 
 
 ## Results  
-Showing prediced results of VOC dataset and BCCD dataset  
+Showing prediced results of VOC dataset and BCCD dataset by **frcnn**  
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset")
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")
 
