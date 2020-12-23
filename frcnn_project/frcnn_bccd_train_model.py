@@ -16,8 +16,8 @@ from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.samples.bccd import BccdConfig
-from frcnn.samples.bccd import BccdDataset
+from frcnn.samples.voc import VocConfig
+from frcnn.samples.voc import VocDataset
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
@@ -26,7 +26,7 @@ LOG_ROOT = 'log_frcnn_bccd'
 
 
 #%% Configurations
-class BccdConfig(BccdConfig):
+class BccdConfig(VocConfig):
     IMAGE_MIN_DIM = 640
     IMAGE_MAX_DIM = 640
     RPN_ANCHOR_SCALES = [64,128,512]
@@ -37,6 +37,8 @@ class BccdConfig(BccdConfig):
     IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0001
     STEPS_PER_EPOCH = 1000
+
+    NUM_CLASSES = 1 + 3  # BG + BCCD 3 classes
     
 config = BccdConfig()
 # config.display()
@@ -46,12 +48,12 @@ config = BccdConfig()
 dataset_dir = r'D:\YJ\MyDatasets\VOC\bccd'
 
 # Training dataset
-dataset_train = BccdDataset()
+dataset_train = VocDataset()
 dataset_train.load_voc(dataset_dir, "trainval")
 dataset_train.prepare()
 
 # Validation dataset
-dataset_val = BccdDataset()
+dataset_val = VocDataset()
 dataset_val.load_voc(dataset_dir, "test")
 dataset_val.prepare()
 
@@ -106,8 +108,8 @@ log("image_meta", image_meta)
 log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
-visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-                            dataset_train.class_names, ax=get_ax())
+# visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+#                             dataset_train.class_names, ax=get_ax())
 
 results = model.detect([original_image], verbose=1)
 

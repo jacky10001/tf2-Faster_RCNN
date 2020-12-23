@@ -30,12 +30,12 @@ class ShapesConfig(ShapesConfig):
     IMAGE_MAX_DIM = 128
     RPN_ANCHOR_SCALES = [32,64,128]
     
-    CLASSIF_FC_LAYERS_SIZE = 256
+    CLASSIF_FC_LAYERS_SIZE = 128
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 5
     LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 50
+    STEPS_PER_EPOCH = 250
 
 config = ShapesConfig()
 # config.display()
@@ -44,7 +44,7 @@ config = ShapesConfig()
 #%% Dataset
 # Training dataset
 dataset_train = ShapesDataset()
-dataset_train.load_shapes(1000, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1], 4)
+dataset_train.load_shapes(2500, config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1], 4)
 dataset_train.prepare()
 
 # Validation dataset
@@ -93,18 +93,6 @@ model.load_weights(model_path, by_name=True)
 
 
 #%% Test on a random image
-image_id = random.choice(dataset_train.image_ids)
-original_image, image_meta, gt_class_id, gt_bbox =\
-    data.load_image_gt(dataset_train, inference_config, image_id)
-
-results = model.detect([original_image], verbose=1)
-
-r = results[0]
-visualize.display_instances(original_image, r['rois'], r['class_ids'], 
-                            dataset_val.class_names, r['scores'], ax=get_ax())
-
-
-#%% Test on a random image
 image_id = random.choice(dataset_val.image_ids)
 original_image, image_meta, gt_class_id, gt_bbox =\
     data.load_image_gt(dataset_val, inference_config, image_id)
@@ -129,6 +117,11 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Running on 10 images. Increase for better accuracy.
 
 image_ids = np.random.choice(dataset_val.image_ids, 10)
+
+image_ids = dataset_val.image_ids
+
+
+print(len(image_ids))
 APs = []
 for image_id in image_ids:
     # Load image and ground truth data
