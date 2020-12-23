@@ -41,6 +41,12 @@ The code can run on tf2.3
   * Use VOC annotation format (.xml)
 
 
+## Results  
+Showing prediced results of VOC dataset and BCCD dataset  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset")
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")
+
+
 ## Refer
 PSACAL VOC 2007 dataset: [here](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/index.html)  
 BCCD dataset: [here](https://github.com/Shenggan/BCCD_Dataset)  
