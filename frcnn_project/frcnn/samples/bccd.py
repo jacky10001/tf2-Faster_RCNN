@@ -38,6 +38,9 @@ class BccdConfig(Config):
 
     # Learning rate and momentum
     LEARNING_RATE = 0.0005
+    
+    # Number of Weights of head classifier
+    CLASSIF_FC_LAYERS_SIZE = 512
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100

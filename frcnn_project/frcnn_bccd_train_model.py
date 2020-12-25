@@ -111,7 +111,10 @@ log("gt_bbox", gt_bbox)
 # visualize.display_instances(original_image, gt_bbox, gt_class_id, 
 #                             dataset_train.class_names, ax=get_ax())
 
+t1 = time.time()
 results = model.detect([original_image], verbose=1)
+t2 = time.time()
+print('time:', t2-t1)
 
 r = results[0]
 visualize.display_instances(original_image, r['rois'], r['class_ids'], 
