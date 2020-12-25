@@ -568,7 +568,7 @@ class FasterRCNN():
             callbacks.CSVLogger(
                 os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
             
-            mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
+            # mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
             
         ]
 
