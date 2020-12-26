@@ -221,12 +221,20 @@ class FasterRCNN():
         config: A Sub-class of the Config class
         model_dir: Directory to save training logs and trained weights
         """
-        assert mode in ['training', 'inference']
-        self.mode = mode
+        assert mode in ['training', 'retrain', 'inference']
         self.config = config
         self.model_dir = model_dir
-        self.set_log_dir()
+        
+        retrain_weights = None
+        if mode == 'retrain':
+            retrain_weights = self.find_last()
+            mode = 'training'
+        self.mode = mode
         self.keras_model = self.build(mode=mode, config=config)
+        if retrain_weights:
+            filepath = self.find_last()
+            self.load_weights(filepath)
+        else: self.set_log_dir()
 
     def build(self, mode, config): #TODO - model architecture
         """Build Faster R-CNN architecture.
