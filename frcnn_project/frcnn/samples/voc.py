@@ -38,6 +38,9 @@ class VocConfig(Config):
 
     # Learning rate and momentum
     LEARNING_RATE = 0.0005
+    
+    # Number of Weights of head classifier
+    CLASSIF_FC_LAYERS_SIZE = 512
 
     # Number of training steps per epoch
     STEPS_PER_EPOCH = 100
@@ -81,6 +84,42 @@ class VocDataset(Dataset):
                 classes_id=voc.images[image_id]["classes_id"],
             )
         time.sleep(0.5)
+    
+    def load_voc_list(self, dataset_dir_list, subset_list, show_num=False):
+        """ Load a subset of the VOC dataset.
+        dataset_dir: The root directory of the VOC dataset.
+        subset: What to load (train, val, minival, valminusminival)
+        """
+        assert isinstance(dataset_dir_list, list) == True
+        assert isinstance(subset_list, list) == True
+        
+        for dataset_dir, subset in zip(dataset_dir_list, subset_list):
+            dataset_dir = os.path.abspath(dataset_dir)
+            images_dir = os.path.join(dataset_dir,'JPEGImages')
+        
+            voc = VOC(dataset_dir)
+            image_ids = voc.get_subset(subset)
+        
+            if show_num:
+                voc.subset_count(subset, image_ids)
+    
+            # Add classes
+            for cLs_name, cls_id in voc.class_map.items():
+                self.add_class("voc", cls_id, cLs_name)
+            
+            time.sleep(0.5)
+            # Add images
+            for i, image_id in enumerate(tqdm(image_ids, desc="Loading")):
+                self.add_image(
+                    "voc", image_id=image_id,
+                    path=os.path.join(images_dir, voc.images[image_id]['filename']),
+                    width=voc.images[image_id]["width"],
+                    height=voc.images[image_id]["height"],
+                    bboxes=voc.images[image_id]["bboxes"],
+                    classes=voc.images[image_id]["classes"],
+                    classes_id=voc.images[image_id]["classes_id"],
+                )
+            time.sleep(0.5)
 
     def load_bbox(self, image_id):
         """ Load annotations for the given image.
