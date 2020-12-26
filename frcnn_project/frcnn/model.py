@@ -228,7 +228,7 @@ class FasterRCNN():
         self.set_log_dir()
         self.keras_model = self.build(mode=mode, config=config)
 
-    def build(self, mode, config): #TODO
+    def build(self, mode, config): #TODO - model architecture
         """Build Faster R-CNN architecture.
             input_shape: The shape of the input image.
             mode: Either "training" or "inference". The inputs and
@@ -272,12 +272,11 @@ class FasterRCNN():
 
         backbone = tf.keras.applications.ResNet50(
             include_top=False,
-            # input_shape=[None, None, 3],
-            input_tensor=input_image
+            # input_tensor=input_image,
         )
         backbone.training = False
         
-        features = backbone.outputs[0]
+        features = backbone(input_image)
 
         # Anchors
         if mode == "training":
@@ -380,7 +379,6 @@ class FasterRCNN():
                              [detections, frcnn_class, frcnn_bbox,
                                  rpn_rois, rpn_class, rpn_bbox],
                              name='faster_rcnn')
-
         return model
 
     def find_last(self):
@@ -412,47 +410,11 @@ class FasterRCNN():
         checkpoint = os.path.join(dir_name, checkpoints[-1])
         return checkpoint
 
-    def load_weights(self, filepath, by_name=False, exclude=None):
-        """Modified version of the corresponding Keras function with
-        the addition of multi-GPU support and the ability to exclude
-        some layers from loading.
-        exclude: list of layer names to exclude
+    def load_weights(self, filepath, by_name=True, exclude=None):
+        """ Load weights using tf/keras API
         """
-        import h5py
-        # Conditional import to support versions of Keras before 2.2
-        # remove in about 6 months (end of 2018)
-        try:
-            from keras.engine import saving
-        except ImportError:
-            # Keras before 2.2 used the 'topology' namespace.
-            from keras.engine import topology as saving
-
-        if exclude:
-            by_name = True
-
-        if h5py is None:
-            raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
-
-        # In multi-GPU training, we wrap the model. Get layers
-        # of the inner model because they have the weights.
-        keras_model = self.keras_model
-        layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
-            else keras_model.layers
-
-        # Exclude some layers
-        if exclude:
-            layers = filter(lambda l: l.name not in exclude, layers)
-
-        if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
-        else:
-            saving.load_weights_from_hdf5_group(f, layers)
-        if hasattr(f, 'close'):
-            f.close()
-
+        # Load weights by the name of layer
+        self.keras_model.load_weights(filepath, by_name=by_name)
         # Update the log directory
         self.set_log_dir(filepath)
 
@@ -465,9 +427,6 @@ class FasterRCNN():
             lr=learning_rate, momentum=momentum,
             clipnorm=self.config.GRADIENT_CLIP_NORM)
         # Add Losses
-        # First, clear previously set losses to avoid duplication
-        # self.keras_model._losses = []
-        # self.keras_model._per_input_losses = {}
         loss_names = [
             "rpn_class_loss",  "rpn_bbox_loss",
             "frcnn_class_loss", "frcnn_bbox_loss"]
