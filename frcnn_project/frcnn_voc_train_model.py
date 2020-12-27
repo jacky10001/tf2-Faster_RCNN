@@ -29,14 +29,14 @@ LOG_ROOT = 'log_frcnn_voc'
 class VocConfig(VocConfig):
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [64,128,512]
+    RPN_ANCHOR_SCALES = [64,128,256]
     
     CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 5
     LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 1000
+    STEPS_PER_EPOCH = 100
     
 config = VocConfig()
 # config.display()
@@ -67,12 +67,14 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
+# model = FasterRCNN(mode="retrain", config=config, model_dir=LOG_ROOT)
+
 tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=50)
+            epochs=20)
 
 
 #%% Detection
@@ -84,13 +86,17 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
+
+# tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
 
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights
-# model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 model_path = model.find_last()
+
+import os
+model_path = os.path.join(r"log_frcnn_voc\voc20201227T0101\weights",
+                          "faster_rcnn_voc_0044.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)

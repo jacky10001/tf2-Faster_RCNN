@@ -280,11 +280,11 @@ class FasterRCNN():
 
         backbone = tf.keras.applications.ResNet50(
             include_top=False,
-            # input_tensor=input_image,
+            input_tensor=input_image,
         )
-        backbone.training = False
+        backbone.trainable = False
         
-        features = backbone(input_image)
+        features = backbone.outputs[0]
 
         # Anchors
         if mode == "training":
