@@ -45,10 +45,12 @@ The code can run on tf2.3
 
 
 ## Results  
-Showing prediced results of VOC dataset and BCCD dataset by **frcnn**  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset")
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Train Custom dataset")
+Showing prediced results of VOC dataset 
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset") 
+Showing prediced results of BCCD dataset  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")  
+Showing prediced results of Custom dataset
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Train Custom dataset")  
 
 
 ## Refer
