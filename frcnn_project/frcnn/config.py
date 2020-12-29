@@ -46,7 +46,7 @@ class Config(object):
     # 1. Backbone name.
     # 3. consider feature stride.
     # 3. compute feature map size.
-    BACKBONE = "resnet50"
+    BACKBONE_NAME = 'resnet50'
     BACKBONE_STRIDES = 32    # resnet50
     FEATUREMAP_RATIOS = 32   # resnet50
 

@@ -22,7 +22,7 @@ print('TF.KERAS version:', keras.__version__)
 tf.compat.v1.disable_eager_execution()
 
 from . import utils
-from . import mycallback
+# from . import mycallback
 
 from .data import data_generator
 
@@ -40,6 +40,56 @@ from .core.losses import rpn_class_loss_graph
 from .core.losses import rpn_bbox_loss_graph
 from .core.losses import frcnn_class_loss_graph
 from .core.losses import frcnn_bbox_loss_graph
+
+
+BACKBONE = {
+    'vgg16': {
+        'net': keras.applications.VGG16,
+        'featuremap_size': 512,
+    },
+    'resnet50': {
+        'net': keras.applications.ResNet50,
+        'featuremap_size': 2048,
+    },
+    'resnet101': {
+        'net': keras.applications.ResNet101,
+        'featuremap_size': 2048,
+    },
+    'mobilenetv2': {
+        'net': keras.applications.MobileNetV2,
+        'featuremap_size': 1280,
+    },
+}
+
+
+
+TRAINABLE = {
+    'vgg16': {
+        '+all': r".*",
+        '+head': r"(frcnn\_.*)|(rpn\_.*)",
+        '+5': "(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+        '+4': "(block4\_.*)|(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+    },
+    'resnet50': {
+        '+all': r".*",
+        '+head': r"(frcnn\_.*)|(rpn\_.*)",
+        '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+        '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+    },
+    'resnet101': {
+        '+all': r".*",
+        '+head': r"(frcnn\_.*)|(rpn\_.*)",
+        '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+        '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
+    },
+    'mobilenetv2': {
+        '+all': r".*",
+        '+head': r"(frcnn\_.*)|(rpn\_.*)",
+        '+16': r"(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
+        '+15': r"(block\_15.*)|(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
+    },
+}
+
 
 
 ############################################################
@@ -222,21 +272,15 @@ class FasterRCNN():
         model_dir: Directory to save training logs and trained weights
         """
         assert mode in ['training', 'retrain', 'inference']
+        self.mode = mode
         self.config = config
         self.model_dir = model_dir
-        
-        retrain_weights = None
-        if mode == 'retrain':
-            retrain_weights = self.find_last()
-            mode = 'training'
-        self.mode = mode
         self.keras_model = self.build(mode=mode, config=config)
-        if retrain_weights:
-            filepath = self.find_last()
-            self.load_weights(filepath)
-        else: self.set_log_dir()
+        self.set_log_dir()
+        print('Mode:', mode)
+        print('Backbone:', config.BACKBONE_NAME)
 
-    def build(self, mode, config): #TODO - model architecture
+    def build(self, mode, config):
         """Build Faster R-CNN architecture.
             input_shape: The shape of the input image.
             mode: Either "training" or "inference". The inputs and
@@ -277,13 +321,12 @@ class FasterRCNN():
         elif mode == "inference":
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
-
-        backbone = tf.keras.applications.ResNet50(
+            
+        # TODO - Setting Backbone network 
+        backbone = BACKBONE[config.BACKBONE_NAME]['net'](
             include_top=False,
             input_tensor=input_image,
-        )
-        backbone.trainable = False
-        
+        )        
         features = backbone.outputs[0]
 
         # Anchors
@@ -300,7 +343,7 @@ class FasterRCNN():
         # RPN Model
         rpn = build_rpn_model(config.RPN_ANCHOR_STRIDE, 
                               len(config.RPN_ANCHOR_RATIOS)*len(config.RPN_ANCHOR_SCALES),
-                              2048)
+                              BACKBONE[config.BACKBONE_NAME]['featuremap_size'])
         rpn_class_logits, rpn_class, rpn_bbox = rpn(features)
 
         # Generate proposals
@@ -397,6 +440,7 @@ class FasterRCNN():
         """
         # Get directory names. Each directory corresponds to a model
         dir_names = next(os.walk(os.path.join(self.model_dir)))[1]
+        # Get config name as key
         key = self.config.NAME.lower()
         dir_names = filter(lambda f: f.startswith(key), dir_names)
         dir_names = sorted(dir_names)
@@ -405,16 +449,20 @@ class FasterRCNN():
             raise FileNotFoundError(
                 errno.ENOENT,
                 "Could not find model directory under {}".format(self.model_dir))
-        # Pick last directory
+            
+        # Pick weights directory
         dir_name = os.path.join(self.model_dir, dir_names[-1], "weights")
-        # Find the last checkpoint
         checkpoints = next(os.walk(dir_name))[2]
-        checkpoints = filter(lambda f: f.startswith("faster_rcnn"), checkpoints)
+        # Get backbone name as key
+        model_key = "faster_rcnn_{}".format(self.config.BACKBONE_NAME.lower())
+        checkpoints = filter(lambda f: f.startswith(model_key), checkpoints)
         checkpoints = sorted(checkpoints)
         if not checkpoints:
             import errno
-            raise FileNotFoundError(
-                errno.ENOENT, "Could not find weight files in {}".format(dir_name))
+            msg = "Could not find weight files in {}. " + \
+                  "Please check your \'filepath\' and \'backbone\'"
+            raise FileNotFoundError(errno.ENOENT, msg.format(dir_name))
+        # Find the last checkpoint
         checkpoint = os.path.join(dir_name, checkpoints[-1])
         return checkpoint
 
@@ -425,6 +473,38 @@ class FasterRCNN():
         self.keras_model.load_weights(filepath, by_name=by_name)
         # Update the log directory
         self.set_log_dir(filepath)
+
+    def set_trainable(self, layer_regex, keras_model=None, indent=0, verbose=1):
+        """Sets model layers as trainable if their names match
+        the given regular expression.
+        """
+        # Print message on the first call (but not on recursive calls)
+        if verbose > 0 and keras_model is None:
+            log("Selecting layers to train")
+            
+        keras_model = keras_model or self.keras_model
+        layers = keras_model.layers
+        
+        for layer in layers:
+            # Is the layer a model?
+            if layer.__class__.__name__ in ['Functional','Sequential', 'Model']:
+                print("In model: ", layer.name)
+                self.set_trainable(
+                    layer_regex, keras_model=layer, indent=indent+4)
+                continue
+
+            if not layer.weights:
+                continue
+            # Is it trainable?
+            trainable = bool(re.fullmatch(layer_regex, layer.name))
+            # Update layer. If layer is a container, update inner layer.
+            if layer.__class__.__name__ == 'TimeDistributed':
+                layer.layer.trainable = trainable
+            else: layer.trainable = trainable
+            # Print trainable layer names
+            if trainable and verbose > 0:
+                log("{}{:20}   ({})".format(" " * indent, layer.name,
+                                            layer.__class__.__name__))
 
     def compile(self, learning_rate, momentum): #TODO
         """Gets the model ready for training. Adds losses, regularization, and
@@ -496,55 +576,73 @@ class FasterRCNN():
                 # So, adjust for that then increment by one to start from the next epoch
                 self.epoch = epoch - 1 + 1
                 print('Re-starting from epoch %d' % self.epoch)
+                self.set_log_flag = True
 
         # Directory for training logs
         self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
 
+        # Create log_dir if it does not exist
+        self.CKPT_DIR = os.path.join(self.log_dir,'weights')
+        self.TB_DIR = os.path.join(self.log_dir,'tensorboard')
+
         # Path to save after each epoch. Include placeholders that get filled by Keras.
-        self.checkpoint_path = os.path.join(self.log_dir, "weights", "faster_rcnn_{}_*epoch*.h5".format(
-            self.config.NAME.lower()))
+        self.checkpoint_path = os.path.join(
+            self.CKPT_DIR, "faster_rcnn_{}_{}_*epoch*.h5".format(
+                self.config.BACKBONE_NAME.lower(), self.config.NAME.lower()))
         self.checkpoint_path = self.checkpoint_path.replace(
             "*epoch*", "{epoch:04d}")
+        
+        # Save model when appear best loss
+        self.best_model_path = os.path.join(self.log_dir,'faster_rcnn_best.h5')
 
-    def train(self, train_dataset, val_dataset, learning_rate, epochs):
+    def train(self, train_dataset, val_dataset, learning_rate, epochs, trainable="+head"):
         assert self.mode == "training", "Create model in training mode."
-
+        
+        # Make folder
+        if not os.path.exists(self.log_dir):
+            print('Create New The Directory of Training Log !!!!!')
+            os.makedirs(self.CKPT_DIR, exist_ok=True)
+            os.makedirs(self.TB_DIR, exist_ok=True)
+        
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
                                          batch_size=self.config.BATCH_SIZE)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
 
-        # Create log_dir if it does not exist
-        CKPT_DIR = os.path.join(self.log_dir,'weights')
-        TB_DIR = os.path.join(self.log_dir,'tensorboard')
-        if not os.path.exists(self.log_dir):
-            print('Create New Folder !!!!!')
-            os.makedirs(CKPT_DIR, exist_ok=True)
-            os.makedirs(TB_DIR, exist_ok=True)
-
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
-                log_dir=TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
+                log_dir=self.TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
             
             callbacks.ModelCheckpoint(
                 self.checkpoint_path, verbose=0, save_weights_only=True),
+            
+            callbacks.ModelCheckpoint(
+                self.best_model_path, verbose=0, save_weights_only=True, save_best_only=True),
             
             callbacks.CSVLogger(
                 os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
             
             # mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
-            
         ]
+        
+        # Select trainable layers
+        backbone = self.config.BACKBONE_NAME
+        if trainable not in TRAINABLE[backbone].keys():
+            print('\n   The trainable key \'{}\' not exist.'.format(trainable))
+            print('   It will use defualt key \'+head\'\n')
+        else:
+            print('\n   The trainable key is \'{}\'\n'.format(trainable))
+        layers = TRAINABLE[backbone].get(trainable, TRAINABLE[backbone]["+head"]) 
+        self.set_trainable(layers)
 
         # Train
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
         log("Checkpoint Path: {}".format(self.checkpoint_path))
         self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
         
-        # TODO
         self.keras_model.fit(
             train_generator,
             initial_epoch=self.epoch,
@@ -881,3 +979,26 @@ class FasterRCNN():
         for k, v in outputs_np.items():
             log(k, v)
         return outputs_np
+    
+    def plot_model(self):
+        filepath = os.path.join(self.model_dir, "faster_rcnn_{}_{}.png")
+        if self.mode == "training":
+            filepath = filepath.format(self.config.BACKBONE_NAME.lower(), 'tra')
+        elif self.mode == "inference":
+            filepath = filepath.format(self.config.BACKBONE_NAME.lower(), 'det')
+        print("\nPlot model to {}\n".format(filepath))
+        keras.utils.plot_model(
+            self.keras_model, to_file=filepath, show_shapes=True)
+    
+    def print_summary(self):
+        filepath = os.path.join(self.model_dir, "faster_rcnn_{}_{}.txt")
+        if self.mode == "training":
+            filepath = filepath.format(self.config.BACKBONE_NAME.lower(), 'tra')
+        elif self.mode == "inference":
+            filepath = filepath.format(self.config.BACKBONE_NAME.lower(), 'det')
+        print("\nPrint summary to {}\n".format(filepath))
+        if filepath and isinstance(filepath, str):
+            from contextlib import redirect_stdout
+            with open(filepath, 'w+') as f:
+                with redirect_stdout(f):
+                    self.keras_model.summary()
