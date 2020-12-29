@@ -45,19 +45,19 @@ from .core.losses import frcnn_bbox_loss_graph
 BACKBONE = {
     'vgg16': {
         'net': keras.applications.VGG16,
-        'featuremap_size': 512,
+        'featuremap_kernel': 512,
     },
     'resnet50': {
         'net': keras.applications.ResNet50,
-        'featuremap_size': 2048,
+        'featuremap_kernel': 2048,
     },
     'resnet101': {
         'net': keras.applications.ResNet101,
-        'featuremap_size': 2048,
+        'featuremap_kernel': 2048,
     },
     'mobilenetv2': {
         'net': keras.applications.MobileNetV2,
-        'featuremap_size': 1280,
+        'featuremap_kernel': 1280,
     },
 }
 
@@ -66,24 +66,28 @@ BACKBONE = {
 TRAINABLE = {
     'vgg16': {
         '+all': r".*",
+        '+frcnn': r"(frcnn\_.*)",
         '+head': r"(frcnn\_.*)|(rpn\_.*)",
         '+5': "(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
         '+4': "(block4\_.*)|(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
     },
     'resnet50': {
         '+all': r".*",
+        '+frcnn': r"(frcnn\_.*)",
         '+head': r"(frcnn\_.*)|(rpn\_.*)",
         '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
         '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
     },
     'resnet101': {
         '+all': r".*",
+        '+frcnn': r"(frcnn\_.*)",
         '+head': r"(frcnn\_.*)|(rpn\_.*)",
         '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
         '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
     },
     'mobilenetv2': {
         '+all': r".*",
+        '+frcnn': r"(frcnn\_.*)",
         '+head': r"(frcnn\_.*)|(rpn\_.*)",
         '+16': r"(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
         '+15': r"(block\_15.*)|(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
@@ -154,11 +158,11 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
 
     # Reshape to [batch, anchors, 2]
     rpn_class_logits = KL.Lambda(
-        lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]), name="rpn_class_XX")(x)
+        lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]))(x)
     
     # Softmax on last dimension of BG/FG.
     rpn_probs = KL.Activation(
-        "softmax", name="rpn_probs_XX")(rpn_class_logits)
+        "softmax", name="rpn_class_XX")(rpn_class_logits)
 
     # Bounding box refinement. [batch, H, W, anchors per location * depth]
     # where depth is [x, y, log(w), log(h)]
@@ -261,7 +265,6 @@ def head_classifier_graph(rois, features, image_meta, pool_size, num_classes,
 
 class FasterRCNN():
     """Encapsulates the Faster RCNN model functionality.
-
     The actual Keras model is in the keras_model property.
     """
 
@@ -298,8 +301,8 @@ class FasterRCNN():
         # Inputs
         input_image = KL.Input(
             shape=[None, None, config.IMAGE_SHAPE[2]], name="input_image")
-        input_image_meta = KL.Input(shape=[config.IMAGE_META_SIZE],
-                                    name="input_image_meta")
+        input_image_meta = KL.Input(
+            shape=[config.IMAGE_META_SIZE], name="input_image_meta")
         if mode == "training":
             # RPN GT
             input_rpn_match = KL.Input(
@@ -343,8 +346,10 @@ class FasterRCNN():
         # RPN Model
         rpn = build_rpn_model(config.RPN_ANCHOR_STRIDE, 
                               len(config.RPN_ANCHOR_RATIOS)*len(config.RPN_ANCHOR_SCALES),
-                              BACKBONE[config.BACKBONE_NAME]['featuremap_size'])
+                              BACKBONE[config.BACKBONE_NAME]['featuremap_kernel'])
         rpn_class_logits, rpn_class, rpn_bbox = rpn(features)
+        
+        # rpn_class = KL.Lambda(lambda x: x, name="rpn_class")(rpn_class)
 
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
@@ -592,9 +597,6 @@ class FasterRCNN():
                 self.config.BACKBONE_NAME.lower(), self.config.NAME.lower()))
         self.checkpoint_path = self.checkpoint_path.replace(
             "*epoch*", "{epoch:04d}")
-        
-        # Save model when appear best loss
-        self.best_model_path = os.path.join(self.log_dir,'faster_rcnn_best.h5')
 
     def train(self, train_dataset, val_dataset, learning_rate, epochs, trainable="+head"):
         assert self.mode == "training", "Create model in training mode."
@@ -610,20 +612,18 @@ class FasterRCNN():
                                          batch_size=self.config.BATCH_SIZE)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
-
+        
+        now = datetime.datetime.now()
+        os.path.join(self.log_dir, "train_history_{:%Y%m%d%H%M}.csv".format(now))
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
                 log_dir=self.TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
             
             callbacks.ModelCheckpoint(
-                self.checkpoint_path, verbose=0, save_weights_only=True),
-            
-            callbacks.ModelCheckpoint(
-                self.best_model_path, verbose=0, save_weights_only=True, save_best_only=True),
-            
-            callbacks.CSVLogger(
-                os.path.join(self.log_dir, "training_history.csv"), separator=",", append=False),
+                self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=True),
+
+            callbacks.CSVLogger(self.history_path, separator=",", append=False),
             
             # mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
         ]

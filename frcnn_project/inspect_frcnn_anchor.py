@@ -10,10 +10,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 from frcnn import utils, visualize
-from frcnn.core import common
 
-from frcnn.samples.voc import VocConfig
-from frcnn.samples.voc import VocDataset
+from frcnn.dataset.voc import VocConfig
+from frcnn.dataset.voc import VocDataset
 
 
 def get_ax(rows=1, cols=1, size=6):

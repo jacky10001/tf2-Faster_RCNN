@@ -414,9 +414,44 @@ def display_table(table):
         html += "<tr>" + row_html + "</tr>"
     html = "<table>" + html + "</table>"
     IPython.display.display(IPython.display.HTML(html))
+    return html
 
 
-def display_weight_stats(model):
+def print_table(table):
+    """Print values in a table format.
+    table: an iterable of rows, and each row is an iterable of values.
+    """
+    
+    skip_split = '*******************************************************'
+    skip_info1 = 'Skip print'
+    skip_info2 = 'if you want to see all info, ' \
+                 'please check saved file.' 
+    
+    table_str = ""
+    print_skip_min = 50
+    print_skip_mid = len(table)//2
+    print_skip_max = len(table)-50
+    for c, row in enumerate(table):
+        str_col = ""
+        for i, col in enumerate(row):
+            if i == 0: str_col += "{:<44}".format(col)
+            elif i == 1: str_col += "{:^20}".format(col)
+            elif i == 2: str_col += "{:^14}".format(col)
+            elif i == 3: str_col += "{:^14}".format(col)
+            elif i == 4: str_col += "{:^14}\n".format(col)
+        if (c < print_skip_min or
+            c > print_skip_max):
+            print(str_col, end='')
+        elif c == print_skip_mid:
+            print("\n\n{:^106}".format(skip_split))
+            print("{:^106}".format(skip_info1))
+            print("{:^106}".format(skip_info2))
+            print("{:^106}\n\n".format(skip_split))
+        table_str += str_col
+    return table_str
+
+
+def display_weight_stats(model, html=False, save=False, save_path='inspect_weights.%s'):
     """Scans all the weights in the model and returns a list of tuples
     that contain stats about each weight.
     """
@@ -427,12 +462,21 @@ def display_weight_stats(model):
         weight_tensors = l.weights  # list of TF tensors
         for i, w in enumerate(weight_values):
             weight_name = weight_tensors[i].name
+            
             # Detect problematic layers. Exclude biases of conv layers.
-            alert = ""
-            if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
-                alert += "<span style='color:red'>*** dead?</span>"
-            if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
-                alert += "<span style='color:red'>*** Overflow?</span>"
+            if html:
+                alert = ""
+                if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
+                    alert += "<span style='color:red'> *dead?</span>"
+                if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
+                    alert += "<span style='color:red'> *Overflow?</span>"
+            else:
+                alert = ""
+                if w.min() == w.max() and not (l.__class__.__name__ == "Conv2D" and i == 1):
+                    alert += " *dead?"
+                if np.abs(w.min()) > 1000 or np.abs(w.max()) > 1000:
+                    alert += " *Overflow?"
+            
             # Add row
             table.append([
                 weight_name + alert,
@@ -441,4 +485,13 @@ def display_weight_stats(model):
                 "{:+10.4f}".format(w.max()),
                 "{:+9.4f}".format(w.std()),
             ])
-    display_table(table)
+    
+    if html:
+        raw_file = display_table(table)
+        ext = '.html'
+    else: 
+        raw_file = print_table(table)
+        ext = '.txt'
+    
+    with open(save_path%ext,'w') as f:
+        f.write(raw_file)

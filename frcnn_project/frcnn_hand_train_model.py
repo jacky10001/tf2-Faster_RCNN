@@ -9,32 +9,33 @@ import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
 from frcnn import data, utils, visualize
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.samples.voc import VocConfig
-from frcnn.samples.voc import VocDataset
+from frcnn.dataset.voc import VocConfig
+from frcnn.dataset.voc import VocDataset
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_frcnn_hand'
+LOG_ROOT = 'log_frcnn'
 
 
 #%% Configurations
 class HandConfig(VocConfig):
+    NAME = 'hand'
+    BACKBONE_NAME = 'resnet101'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [64,128,512]
+    RPN_ANCHOR_SCALES = [64,128,256]
     
     CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
-    IMAGES_PER_GPU = 5
+    IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0001
     STEPS_PER_EPOCH = 200
 
@@ -48,37 +49,15 @@ config = HandConfig()
 dataset_dir1 = r'D:\YJ\MyDatasets\VOC\egohands_data'
 dataset_dir2 = r'D:\YJ\MyDatasets\VOC\vgg_hands_data'
 
-
-
-# Training dataset
-# dataset_train = VocDataset()
-# dataset_train.load_voc(dataset_dir1, "trainval")
-# dataset_train.prepare()
-
-# dataset_train = VocDataset()
-# dataset_train.load_voc(dataset_dir2, "trainval")
-# dataset_train.prepare()
-
+# Training datasets
 dataset_train = VocDataset()
 dataset_train.load_voc_list([dataset_dir1,dataset_dir2], ["trainval","trainval"])
 dataset_train.prepare()
 
-
-
-# Validation dataset
-# dataset_val = VocDataset()
-# dataset_val.load_voc(dataset_dir1, "test")
-# dataset_val.prepare()
-
-# dataset_val = VocDataset()
-# dataset_val.load_voc(dataset_dir2, "test")
-# dataset_val.prepare()
-
+# Validation datasets
 dataset_val = VocDataset()
 dataset_val.load_voc_list([dataset_dir1,dataset_dir2], ["test","test"])
 dataset_val.prepare()
-
-
 
 # Load and display random samples
 # image_ids = np.random.choice(dataset_train.image_ids, 1)
@@ -92,12 +71,20 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
+
+model_path = model.find_last()
+model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=50)
+            epochs=100, trainable='+all')
+
+# model.train(dataset_train, dataset_val, 
+#             learning_rate=config.LEARNING_RATE, 
+#             epochs=50, trainable='+head')
 
 
 #%% Detection
@@ -109,12 +96,10 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
-
+# model.plot_model()
+# model.print_summary()
 
 # Get path to saved weights
-# Either set a specific path or find last trained weights
-# model_path = os.path.join(ROOT_DIR, ".h5 file name here")
 model_path = model.find_last()
 
 # Load trained weights

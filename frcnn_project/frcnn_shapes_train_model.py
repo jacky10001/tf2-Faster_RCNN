@@ -8,24 +8,25 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
 from frcnn import data, utils, visualize
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.samples.shapes import ShapesConfig
-from frcnn.samples.shapes import ShapesDataset
+from frcnn.dataset.shapes import ShapesConfig
+from frcnn.dataset.shapes import ShapesDataset
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_frcnn_shapes'
+LOG_ROOT = 'log_frcnn'
 
 
 #%%
 class ShapesConfig(ShapesConfig):
+    NAME = 'shapes'
+    BACKBONE_NAME = 'resnet101'
     IMAGE_MIN_DIM = 128
     IMAGE_MAX_DIM = 128
     RPN_ANCHOR_SCALES = [32,64,128]
@@ -64,11 +65,15 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
+
+model_path = model.find_last()
+model.load_weights(model_path, by_name=True)
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=10)
+            epochs=13, trainable='+all')
 
 
 #%% Detection
@@ -80,13 +85,12 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
 
 model_path = model.find_last()
-# model_path = os.path.join("log_shapes",
-#                           "weights",
-#                           "shapes20201219T1642",
-#                           "faster_rcnn_shapes_0001.h5")
+# model_path = os.path.join("log_frcnn", "shapes20201219T1642",
+#                           "weights", "faster_rcnn_shapes_0001.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)

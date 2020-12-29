@@ -9,34 +9,35 @@ import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
 from frcnn import data, utils, visualize
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.samples.voc import VocConfig
-from frcnn.samples.voc import VocDataset
+from frcnn.dataset.voc import VocConfig
+from frcnn.dataset.voc import VocDataset
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_frcnn_bccd'
+LOG_ROOT = 'log_frcnn'
 
 
 #%% Configurations
 class BccdConfig(VocConfig):
+    NAME = 'bccd'
+    BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 640
     IMAGE_MAX_DIM = 640
-    RPN_ANCHOR_SCALES = [64,128,512]
+    RPN_ANCHOR_SCALES = [64,128,256]
     
     CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 1000
+    STEPS_PER_EPOCH = 200
 
     NUM_CLASSES = 1 + 3  # BG + BCCD 3 classes
     
@@ -69,12 +70,16 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
+
+# model_path = model.find_last()
+# model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=50)
+            epochs=50, trainable='+all')
 
 
 #%% Detection
@@ -86,7 +91,8 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
 
 
 # Get path to saved weights

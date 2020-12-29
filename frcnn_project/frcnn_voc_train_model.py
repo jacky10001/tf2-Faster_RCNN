@@ -5,38 +5,40 @@
 @date: Fri Dec 18 04:39:21 2020
 """
 
+import os
 import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
-import tensorflow as tf
 
 from frcnn import data, utils, visualize
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.samples.voc import VocConfig
-from frcnn.samples.voc import VocDataset
+from frcnn.dataset.voc import VocConfig
+from frcnn.dataset.voc import VocDataset
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
 
-LOG_ROOT = 'log_frcnn_voc'
+LOG_ROOT = 'log_frcnn'
 
 
 #%% Configurations
 class VocConfig(VocConfig):
+    NAME = 'voc'
+    BACKBONE_NAME = 'resnet101'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
     RPN_ANCHOR_SCALES = [64,128,256]
     
-    CLASSIF_FC_LAYERS_SIZE = 256
+    CLASSIF_FC_LAYERS_SIZE = 512
     POOL_SIZE = 7
     
-    IMAGES_PER_GPU = 5
+    IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 500
     
 config = VocConfig()
 # config.display()
@@ -67,14 +69,16 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-# model = FasterRCNN(mode="retrain", config=config, model_dir=LOG_ROOT)
+model.plot_model()
+model.print_summary()
 
-tf.keras.utils.plot_model(model.keras_model, to_file='archi_tra.png', show_shapes=True)
+model_path = model.find_last()
+model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=20)
+            epochs=20, trainable='+all')
 
 
 #%% Detection
@@ -86,17 +90,15 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-
-# tf.keras.utils.plot_model(model.keras_model, to_file='archi_det.png', show_shapes=True)
+model.plot_model()
+model.print_summary()
 
 
 # Get path to saved weights
 # Either set a specific path or find last trained weights
 model_path = model.find_last()
-
-import os
-model_path = os.path.join(r"log_frcnn_voc\voc20201227T0101\weights",
-                          "faster_rcnn_voc_0044.h5")
+# model_path = os.path.join("log_frcnn", "voc20201227T0101", "weights",
+#                           "faster_rcnn_voc_0044.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)
