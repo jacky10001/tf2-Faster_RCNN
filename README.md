@@ -2,8 +2,11 @@
 This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN) for implementation of Faster RCNN model  
 
 
+
 ## Folder
 **frcnn_project (main work)**: for change backbone network from Keras Applications model  
+Future maybe will try to add my CNN and FPN in backbone  
+
 **frcnnfpn_project**: use pre-training model from matterport/Mask_RCNN [weights](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5)  
 
 
@@ -22,13 +25,14 @@ The code can run on tf2.3
 - [x] Input Shapes dataset  
 - [x] Input BCCD dataset  
 - [x] Input voc 2007 data  
-- [x] Change backbone (use ResNet50 from Keras application)  
+- [x] Input Custom data  
+- [x] Input multi voc format dataset  
+- [x] Change backbone (use Keras application)  
 - [x] Head layer reduce weights  
-- [ ] Change backbone (use MobileNetV2 from Keras application)  
-- [ ] Inspect training results (calculate mAP)
+- [x] Inspect training results (model output and weights)
 
 
-## Tips  
+## Tips   
 * Install package can follow [here](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/requirements.txt)   
 * Input data  
   * Modify config  
@@ -44,6 +48,7 @@ The code can run on tf2.3
 Showing prediced results of VOC dataset and BCCD dataset by **frcnn**  
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset")
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Train Custom dataset")
 
 
 ## Refer
