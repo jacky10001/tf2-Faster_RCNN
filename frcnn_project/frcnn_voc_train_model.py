@@ -72,13 +72,17 @@ model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
 model.plot_model()
 model.print_summary()
 
-model_path = model.find_last()
-model.load_weights(model_path, by_name=True)
+# model_path = model.find_last()
+# model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=20, trainable='+all')
+            epochs=40, trainable='+5')
+
+model.train(dataset_train, dataset_val, 
+            learning_rate=config.LEARNING_RATE, 
+            epochs=80, trainable='+all')
 
 
 #%% Detection

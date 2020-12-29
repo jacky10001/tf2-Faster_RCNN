@@ -349,8 +349,6 @@ class FasterRCNN():
                               BACKBONE[config.BACKBONE_NAME]['featuremap_kernel'])
         rpn_class_logits, rpn_class, rpn_bbox = rpn(features)
         
-        # rpn_class = KL.Lambda(lambda x: x, name="rpn_class")(rpn_class)
-
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
         # and zero padded.
@@ -614,7 +612,8 @@ class FasterRCNN():
                                        batch_size=self.config.BATCH_SIZE)
         
         now = datetime.datetime.now()
-        os.path.join(self.log_dir, "train_history_{:%Y%m%d%H%M}.csv".format(now))
+        self.history_path = os.path.join(
+            self.log_dir, "train_history_{:%Y%m%d%H%M}.csv".format(now))
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
