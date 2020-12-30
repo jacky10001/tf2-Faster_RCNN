@@ -26,73 +26,21 @@ from . import utils
 
 from .data import data_generator
 
-from .core.roi_align import ROIAlign
+from .backbone import (BACKBONE, TRAINABLE)
+
+from .core.roialign import ROIAlign
 from .core.proposal import ProposalLayer
-from .core.detect import DetectionTargetLayer
-from .core.detect import DetectionLayer
+from .core.detect import (DetectionTargetLayer, DetectionLayer)
 
-from .core.common import compose_image_meta
-from .core.common import mold_image
-from .core.common import parse_image_meta_graph
-from .core.common import norm_boxes_graph
+from .core.common import (compose_image_meta,
+                          mold_image,
+                          parse_image_meta_graph,
+                          norm_boxes_graph)
 
-from .core.losses import rpn_class_loss_graph
-from .core.losses import rpn_bbox_loss_graph
-from .core.losses import frcnn_class_loss_graph
-from .core.losses import frcnn_bbox_loss_graph
-
-
-BACKBONE = {
-    'vgg16': {
-        'net': keras.applications.VGG16,
-        'featuremap_kernel': 512,
-    },
-    'resnet50': {
-        'net': keras.applications.ResNet50,
-        'featuremap_kernel': 2048,
-    },
-    'resnet101': {
-        'net': keras.applications.ResNet101,
-        'featuremap_kernel': 2048,
-    },
-    'mobilenetv2': {
-        'net': keras.applications.MobileNetV2,
-        'featuremap_kernel': 1280,
-    },
-}
-
-
-
-TRAINABLE = {
-    'vgg16': {
-        '+all': r".*",
-        '+frcnn': r"(frcnn\_.*)",
-        '+head': r"(frcnn\_.*)|(rpn\_.*)",
-        '+5': "(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-        '+4': "(block4\_.*)|(block5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-    },
-    'resnet50': {
-        '+all': r".*",
-        '+frcnn': r"(frcnn\_.*)",
-        '+head': r"(frcnn\_.*)|(rpn\_.*)",
-        '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-        '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-    },
-    'resnet101': {
-        '+all': r".*",
-        '+frcnn': r"(frcnn\_.*)",
-        '+head': r"(frcnn\_.*)|(rpn\_.*)",
-        '+5': r"(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-        '+4': r"(conv4\_.*)|(conv5\_.*)|(frcnn\_.*)|(rpn\_.*)",
-    },
-    'mobilenetv2': {
-        '+all': r".*",
-        '+frcnn': r"(frcnn\_.*)",
-        '+head': r"(frcnn\_.*)|(rpn\_.*)",
-        '+16': r"(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
-        '+15': r"(block\_15.*)|(block\_16.*)|(Conv\_)|(out_relu)|(frcnn\_.*)|(rpn\_.*)",
-    },
-}
+from .core.losses import (rpn_class_loss_graph,
+                          rpn_bbox_loss_graph,
+                          frcnn_class_loss_graph,
+                          frcnn_bbox_loss_graph)
 
 
 
@@ -611,9 +559,16 @@ class FasterRCNN():
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
         
+        # Sets log directory
         now = datetime.datetime.now()
-        self.history_path = os.path.join(
+        history_path = os.path.join(
             self.log_dir, "train_history_{:%Y%m%d%H%M}.csv".format(now))
+        
+        # Save config file
+        config_path = os.path.join(
+            self.log_dir, "config_{:%Y%m%d%H%M}.json".format(now))
+        self.config.save(config_path)
+        
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
@@ -622,7 +577,7 @@ class FasterRCNN():
             callbacks.ModelCheckpoint(
                 self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=True),
 
-            callbacks.CSVLogger(self.history_path, separator=",", append=False),
+            callbacks.CSVLogger(history_path, separator=",", append=False),
             
             # mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
         ]
