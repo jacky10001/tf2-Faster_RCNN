@@ -8,6 +8,7 @@ Written by Waleed Abdulla
 """
 
 import numpy as np
+import json
 
 
 # Base Configuration Class
@@ -51,7 +52,7 @@ class Config(object):
     FEATUREMAP_RATIOS = 32   # resnet50
 
     # Size of the fully-connected layers in the classification graph
-    FPN_CLASSIF_FC_LAYERS_SIZE = 256
+    CLASSIF_FC_LAYERS_SIZE = 256
 
     # Number of classification classes (including background)
     NUM_CLASSES = 1  # Override in sub-classes
@@ -189,3 +190,31 @@ class Config(object):
             if not a.startswith("__") and not callable(getattr(self, a)):
                 print("{:30} {}".format(a, getattr(self, a)))
         print("\n")
+
+    def save(self, filepath):
+        """Save Configuration values."""
+        assert filepath[-4:] == "json", "Please check your filename extestion is json"
+        print("\nSave:", filepath)
+        cfg_dict = {}
+        for a in dir(self):
+            if not a.startswith("__") and not callable(getattr(self, a)):
+                if isinstance(getattr(self, a), np.ndarray):
+                    cfg_dict[a] = 'np.array(' + str([i for i in getattr(self, a)]) + ')'
+                else:
+                    cfg_dict[a] = getattr(self, a)
+        with open(filepath, 'w') as f:
+            json.dump(cfg_dict, f, indent=4)
+
+    def load(self, filepath):
+        """Load Configuration values."""
+        assert filepath[-4:] == "json", "Please check your filename extestion is json"
+        print("\nLoad:", filepath)
+        with open(filepath, 'r') as f:
+            data_dict = json.load(f)
+        for key, val in data_dict.items():
+            if isinstance(val, str):
+                if val.startswith('np.array'):
+                    setattr(self, key, eval(val))
+                    continue
+            setattr(self, key, val)
+
