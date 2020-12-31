@@ -123,11 +123,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-frcnn*/pretrained_model/*.h5
-log*/
 frcnn*/log*/
+frcnn_project/frcnn_jerry_train_model.py
 frcnn_project/frcnn/mycallback.py
 frcnn_project/save_console
-frcnnfpn_project
+dev_frcnnfpn
 dev_test
-frcnn_project/frcnn_jerry_train_model.py
