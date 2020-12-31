@@ -20,9 +20,10 @@ The code can run on tf2.3
 - [x] Remove mask part  
 - [x] Input Shapes dataset  
 - [x] Input BCCD dataset  
-- [x] Input voc 2007 data  
+- [x] Input VOC 2007 data  
 - [x] Input Custom data  
 - [x] Input multi voc format dataset  
+- [x] Input COCO data  
 - [x] Change backbone (use Keras application)  
 - [x] Head layer reduce weights  
 - [x] Inspect training results (model output and weights)
