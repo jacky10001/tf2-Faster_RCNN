@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-train voc 2007 data
-
-tip:
-tensorboard --logdir log_frcnn\???\tensorboard
 
 @author: Jacky Gao
-@date: Fri Dec 18 04:39:21 2020
+@date: Thu Dec 31 13:34:43 2020
 """
 
-import os
-import time
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,8 +14,9 @@ from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
 
-from frcnn.dataset.voc import VocConfig
-from frcnn.dataset.voc import VocDataset
+from frcnn.dataset.coco import CocoConfig
+from frcnn.dataset.coco import CocoDataset
+from frcnn.dataset.coco import evaluate_coco
 
 def get_ax(rows=1, cols=1, size=5):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
@@ -29,40 +24,41 @@ def get_ax(rows=1, cols=1, size=5):
 LOG_ROOT = 'log_frcnn'
 
 
-#%% Configurations
-class VocConfig(VocConfig):
-    NAME = 'voc'
-    BACKBONE_NAME = 'resnet101'
+#%%
+class CocoConfig(CocoConfig):
+    NAME = 'coco'
+    BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [128,256,512]
+    RPN_ANCHOR_SCALES = [32,64,512]
     
-    CLASSIF_FC_LAYERS_SIZE = 512
+    CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 200
-    
-config = VocConfig()
-# config.display()
-# config.save('cfg.json')
-# config.display()
-# config.load('cfg.json')
+    LEARNING_RATE = 0.001
+    STEPS_PER_EPOCH = 250
+
+config = CocoConfig()
 # config.display()
 
 
 #%% Dataset
-dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
+dataset_dir = r'D:\YJ\MyDatasets\COCO\coco2014'
+year = '2014'
+download = True
 
 # Training dataset
-dataset_train = VocDataset()
-dataset_train.load_voc(dataset_dir, "trainval")
+dataset_train = CocoDataset()
+dataset_train.load_coco(dataset_dir, "train", year=year, auto_download=download)
+if year in '2014':
+    dataset_train.load_coco(dataset_dir, "valminusminival", year=year, auto_download=download)
 dataset_train.prepare()
 
 # Validation dataset
-dataset_val = VocDataset()
-dataset_val.load_voc(dataset_dir, "test")
+dataset_val = CocoDataset()
+val_type = "val" if year in '2017' else "minival"
+dataset_val.load_coco(dataset_dir, val_type, year=year, auto_download=download)
 dataset_val.prepare()
 
 # Load and display random samples
@@ -83,19 +79,13 @@ model.print_summary()
 model_path = model.find_last()
 model.load_weights(model_path, by_name=True)
 
-
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=40, trainable='+5')
-
-
-model.train(dataset_train, dataset_val, 
-            learning_rate=config.LEARNING_RATE, 
-            epochs=50, trainable='+head')
+            epochs=40, trainable='+all')
 
 
 #%% Detection
-class InferenceConfig(VocConfig):
+class InferenceConfig(CocoConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
@@ -106,12 +96,9 @@ model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT
 model.plot_model()
 model.print_summary()
 
-
-# Get path to saved weights
-# Either set a specific path or find last trained weights
 model_path = model.find_last()
-# model_path = os.path.join("log_frcnn", "voc20201227T0101", "weights",
-#                           "faster_rcnn_voc_0044.h5")
+# model_path = os.path.join("log_frcnn", "shapes20201219T1642",
+#                           "weights", "faster_rcnn_shapes_0001.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)
@@ -127,8 +114,8 @@ log("image_meta", image_meta)
 log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
-visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-                            dataset_train.class_names, ax=get_ax())
+# visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+#                             dataset_train.class_names, ax=get_ax())
 
 results = model.detect([original_image], verbose=1)
 
@@ -141,27 +128,33 @@ visualize.display_instances(original_image, r['rois'], r['class_ids'],
 # Compute VOC-Style mAP @ IoU=0.5
 # Running on 10 images. Increase for better accuracy.
 
+limit = 500
+coco = dataset_val.load_coco(dataset_dir, val_type, year=year, return_coco=True, auto_download=download)
+dataset_val.prepare()
+evaluate_coco(model, dataset_val, coco, "bbox", limit=limit)
+
+
+
 image_ids = np.random.choice(dataset_val.image_ids, 10)
 
 image_ids = dataset_val.image_ids
 
-
 print(len(image_ids))
 APs = []
-t1 = time.time()
 for image_id in image_ids:
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
         data.load_image_gt(dataset_val, inference_config, image_id)
     molded_images = np.expand_dims(common.mold_image(image, inference_config), 0)
+    
     # Run object detection
     results = model.detect([image], verbose=0)
     r = results[0]
+    
     # Compute AP
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
     APs.append(AP)
-t2 = time.time()
-print('time:', t2-t1)
-print("\nmAP: ", np.mean(APs))
+    
+print("mAP: ", np.mean(APs))
 

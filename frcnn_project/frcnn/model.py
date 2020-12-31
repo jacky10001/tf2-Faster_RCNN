@@ -26,7 +26,7 @@ from . import utils
 
 from .data import data_generator
 
-from .backbone import (BACKBONE, TRAINABLE)
+from .backbone import BACKBONE
 
 from .core.roialign import ROIAlign
 from .core.proposal import ProposalLayer
@@ -230,6 +230,7 @@ class FasterRCNN():
         self.set_log_dir()
         print('Mode:', mode)
         print('Backbone:', config.BACKBONE_NAME)
+        os.makedirs(model_dir, exist_ok=True)
 
     def build(self, mode, config):
         """Build Faster R-CNN architecture.
@@ -473,7 +474,7 @@ class FasterRCNN():
             layer = self.keras_model.get_layer(name)
             loss = tf.reduce_mean(layer.output, keepdims=True) * self.config.LOSS_WEIGHTS.get(name, 1.)
             self.keras_model.add_loss(loss)
-
+        
         # Add L2 Regularization
         # Skip gamma and beta weights of batch normalization layers.
         reg_losses = [
@@ -584,12 +585,13 @@ class FasterRCNN():
         
         # Select trainable layers
         backbone = self.config.BACKBONE_NAME
-        if trainable not in TRAINABLE[backbone].keys():
+        if trainable not in BACKBONE[backbone]['trainable_layers'].keys():
             print('\n   The trainable key \'{}\' not exist.'.format(trainable))
             print('   It will use defualt key \'+head\'\n')
         else:
             print('\n   The trainable key is \'{}\'\n'.format(trainable))
-        layers = TRAINABLE[backbone].get(trainable, TRAINABLE[backbone]["+head"]) 
+        layers = BACKBONE[backbone]['trainable_layers'].get(
+            trainable, BACKBONE[backbone]['trainable_layers']["+head"]) 
         self.set_trainable(layers)
 
         # Train

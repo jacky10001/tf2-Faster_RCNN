@@ -2,12 +2,8 @@
 This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN) for implementation of Faster RCNN model  
 
 
-
-## Folder
-**frcnn_project (main work)**: for change backbone network from Keras Applications model  
-Future maybe will try to add my CNN and FPN in backbone  
-
-**frcnnfpn_project**: use pre-training model from matterport/Mask_RCNN [weights](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5)  
+## Architecture
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/struct.png "Architecture")  
 
 
 ## setup

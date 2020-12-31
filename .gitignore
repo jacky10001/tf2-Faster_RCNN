@@ -127,10 +127,7 @@ frcnn*/pretrained_model/*.h5
 log*/
 frcnn*/log*/
 frcnn_project/frcnn/mycallback.py
-frcnn_project/archi_tra.png
-frcnn_project/archi_det.png
 frcnn_project/save_console
-frcnnfpn_project/archi_tra.png
-frcnnfpn_project/archi_det.png
+frcnnfpn_project
 dev_test
 frcnn_project/frcnn_jerry_train_model.py
