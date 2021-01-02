@@ -30,13 +30,13 @@ class CocoConfig(CocoConfig):
     BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [32,64,512]
+    RPN_ANCHOR_SCALES = [128,256,512]
     
     CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.0003
     STEPS_PER_EPOCH = 250
 
 config = CocoConfig()
@@ -61,13 +61,20 @@ val_type = "val" if year in '2017' else "minival"
 dataset_val.load_coco(dataset_dir, val_type, year=year, auto_download=download)
 dataset_val.prepare()
 
+
 # Load and display random samples
+# class CheckConfig(CocoConfig):
+#     GPU_COUNT = 1
+#     IMAGES_PER_GPU = 1
+# check_config = CheckConfig()
+    
 # image_ids = np.random.choice(dataset_train.image_ids, 1)
 # for image_id in image_ids:
-#     image = dataset_train.load_image(image_id)
-#     bbox, class_ids = dataset_train.load_bbox(image_id)
-#     # visualize.display_image(image)
-#     visualize.display_instances(image, bbox, class_ids, dataset_train.class_names, ax=get_ax())
+#     original_image, image_meta, gt_class_id, gt_bbox =\
+#         data.load_image_gt(dataset_train, check_config, image_id)
+        
+#     visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+#                                 dataset_train.class_names, ax=get_ax())
 
 
 #%% Create Model
@@ -81,7 +88,7 @@ model.load_weights(model_path, by_name=True)
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=40, trainable='+all')
+            epochs=160, trainable='+5')
 
 
 #%% Detection
@@ -114,14 +121,17 @@ log("image_meta", image_meta)
 log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
-# visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-#                             dataset_train.class_names, ax=get_ax())
+visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+                            dataset_train.class_names, ax=get_ax())
 
 results = model.detect([original_image], verbose=1)
 
 r = results[0]
 visualize.display_instances(original_image, r['rois'], r['class_ids'], 
                             dataset_val.class_names, r['scores'], ax=get_ax())
+AP, precisions, recalls, overlaps =\
+    utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
+print(AP)
 
 
 #%% Evaluation
@@ -133,15 +143,15 @@ coco = dataset_val.load_coco(dataset_dir, val_type, year=year, return_coco=True,
 dataset_val.prepare()
 evaluate_coco(model, dataset_val, coco, "bbox", limit=limit)
 
-
+from tqdm import tqdm
 
 image_ids = np.random.choice(dataset_val.image_ids, 10)
 
-image_ids = dataset_val.image_ids
+# image_ids = dataset_val.image_ids
 
 print(len(image_ids))
 APs = []
-for image_id in image_ids:
+for image_id in tqdm(image_ids):
     # Load image and ground truth data
     image, image_meta, gt_class_id, gt_bbox =\
         data.load_image_gt(dataset_val, inference_config, image_id)

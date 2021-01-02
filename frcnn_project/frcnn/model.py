@@ -463,9 +463,10 @@ class FasterRCNN():
         metrics. Then calls the Keras compile() function.
         """
         # Optimizer object
-        optimizer = keras.optimizers.SGD(
-            lr=learning_rate, momentum=momentum,
-            clipnorm=self.config.GRADIENT_CLIP_NORM)
+        # optimizer = keras.optimizers.SGD(
+        #     lr=learning_rate, momentum=momentum,
+        #     clipnorm=self.config.GRADIENT_CLIP_NORM)
+        optimizer = keras.optimizers.Adam(lr=learning_rate)
         # Add Losses
         loss_names = [
             "rpn_class_loss",  "rpn_bbox_loss",
@@ -545,7 +546,7 @@ class FasterRCNN():
         self.checkpoint_path = self.checkpoint_path.replace(
             "*epoch*", "{epoch:04d}")
 
-    def train(self, train_dataset, val_dataset, learning_rate, epochs, trainable="+head"):
+    def train(self, train_dataset, val_dataset, learning_rate, epochs, trainable="+head"): #TODO
         assert self.mode == "training", "Create model in training mode."
         
         # Make folder
@@ -570,13 +571,20 @@ class FasterRCNN():
             self.log_dir, "config_{:%Y%m%d%H%M}.json".format(now))
         self.config.save(config_path)
         
+        # Save best weights
+        best_weights_path = os.path.join(
+            self.log_dir, "faster_rcnn_best_{:%Y%m%d%H%M}.h5".format(now))
+        
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
                 log_dir=self.TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
             
             callbacks.ModelCheckpoint(
-                self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=True),
+                self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=False),
+            
+            callbacks.ModelCheckpoint(
+                best_weights_path, verbose=0, save_weights_only=True, save_best_only=True),
 
             callbacks.CSVLogger(history_path, separator=",", append=False),
             

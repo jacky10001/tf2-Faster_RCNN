@@ -28,11 +28,11 @@ LOG_ROOT = 'log_frcnn'
 class BccdConfig(VocConfig):
     NAME = 'bccd'
     BACKBONE_NAME = 'resnet50'
-    IMAGE_MIN_DIM = 640
-    IMAGE_MAX_DIM = 640
+    IMAGE_MIN_DIM = 512
+    IMAGE_MAX_DIM = 512
     RPN_ANCHOR_SCALES = [64,128,256]
     
-    CLASSIF_FC_LAYERS_SIZE = 256
+    CLASSIF_FC_LAYERS_SIZE = 64
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
@@ -73,13 +73,17 @@ model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
 model.plot_model()
 model.print_summary()
 
-# model_path = model.find_last()
-# model.load_weights(model_path, by_name=True)
+model_path = model.find_last()
+model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=50, trainable='+all')
+            epochs=100, trainable='+all')
+
+# model.train(dataset_train, dataset_val, 
+#             learning_rate=config.LEARNING_RATE, 
+#             epochs=60, trainable='+frcnn')
 
 
 #%% Detection
@@ -96,8 +100,8 @@ model.print_summary()
 
 
 # Get path to saved weights
-# Either set a specific path or find last trained weights
-# model_path = os.path.join(ROOT_DIR, ".h5 file name here")
+# model_path = os.path.join("log_frcnn", "voc20201227T0101", "weights",
+#                           "faster_rcnn_voc_0044.h5")
 model_path = model.find_last()
 
 # Load trained weights
@@ -114,8 +118,8 @@ log("image_meta", image_meta)
 log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
-# visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-#                             dataset_train.class_names, ax=get_ax())
+visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+                            dataset_train.class_names, ax=get_ax())
 
 t1 = time.time()
 results = model.detect([original_image], verbose=1)
@@ -125,6 +129,9 @@ print('time:', t2-t1)
 r = results[0]
 visualize.display_instances(original_image, r['rois'], r['class_ids'], 
                             dataset_val.class_names, r['scores'], ax=get_ax())
+AP, precisions, recalls, overlaps =\
+    utils.compute_ap(gt_bbox, gt_class_id, r["rois"], r["class_ids"], r["scores"])
+print(AP)
 
 
 #%% Evaluation

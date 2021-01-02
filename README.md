@@ -27,6 +27,7 @@ The code can run on tf2.3
 - [x] Change backbone (use Keras application)  
 - [x] Head layer reduce weights  
 - [x] Inspect training results (model output and weights)
+- [ ] Training results
 
 
 ## Tips   
@@ -42,17 +43,25 @@ The code can run on tf2.3
 
 
 ## Results  
-Showing prediced results of VOC dataset  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "Train VOC dataset")  
+Shapes dataset  
+mAP: 0.95 (100 samples)  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-0.png "Shapes dataset")  
 
-Showing prediced results of BCCD dataset  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "Train BCCD dataset")  
+VOC dataset  
+mAP: 0.49 (4952 samples)  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "VOC dataset")  
 
-Showing prediced results of Custom dataset  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Train Custom dataset")  
+BCCD dataset  
+mAP: 0.72 (72 samples)  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "BCCD dataset")  
+
+Custom dataset (Digital Holographic Microscopy)  
+![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Custom dataset")  
 
 
 ## Refer
+Paper: [here](https://arxiv.org/abs/1506.01497)  
 PSACAL VOC 2007 dataset: [here](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/index.html)  
 BCCD dataset: [here](https://github.com/Shenggan/BCCD_Dataset)  
+Hand dataset on my [repo](https://github.com/jacky10001/handdata_mat2voc)  
 Related work on my [repo](https://github.com/jacky10001/Mask_RCNN-tf2)  

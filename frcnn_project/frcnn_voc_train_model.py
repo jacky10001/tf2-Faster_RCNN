@@ -80,18 +80,20 @@ model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
 model.plot_model()
 model.print_summary()
 
-model_path = model.find_last()
+# model_path = model.find_last()
+model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
+                          "faster_rcnn_best_202101021143.h5")
 model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=40, trainable='+5')
+            epochs=100, trainable='+all')
 
 
-model.train(dataset_train, dataset_val, 
-            learning_rate=config.LEARNING_RATE, 
-            epochs=50, trainable='+head')
+# model.train(dataset_train, dataset_val, 
+#             learning_rate=config.LEARNING_RATE, 
+#             epochs=50, trainable='+head')
 
 
 #%% Detection
@@ -110,8 +112,8 @@ model.print_summary()
 # Get path to saved weights
 # Either set a specific path or find last trained weights
 model_path = model.find_last()
-# model_path = os.path.join("log_frcnn", "voc20201227T0101", "weights",
-#                           "faster_rcnn_voc_0044.h5")
+# model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
+#                           "faster_rcnn_best_202101021143.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)

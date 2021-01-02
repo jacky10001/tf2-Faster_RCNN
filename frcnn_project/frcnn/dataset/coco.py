@@ -24,6 +24,7 @@ from pycocotools import mask as maskUtils
 import zipfile
 import urllib.request
 import shutil
+from tqdm import tqdm
 
 # Import Mask RCNN
 from ..config import Config
@@ -97,16 +98,36 @@ class CocoDataset(Dataset):
         # Add classes
         for i in class_ids:
             self.add_class("coco", i, coco.loadCats(i)[0]["name"])
-
+        
+        skip_cnt = 0
+        pass_cnt = 0
         # Add images
-        for i in image_ids:
-            self.add_image(
-                "coco", image_id=i,
-                path=os.path.join(image_dir, coco.imgs[i]['file_name']),
-                width=coco.imgs[i]["width"],
-                height=coco.imgs[i]["height"],
-                annotations=coco.loadAnns(coco.getAnnIds(
-                    imgIds=[i], catIds=class_ids, iscrowd=None)))
+        time.sleep(0.5)
+        for i in tqdm(image_ids):
+            annotations = coco.loadAnns(coco.getAnnIds(
+                    imgIds=[i], catIds=class_ids, iscrowd=None))
+            
+            check_big = False
+            for annotation in annotations:
+                _, _, w, h = annotation['bbox']
+                if w*h > 100*100:  # TODO - skip small object
+                    check_big = True
+            
+            if check_big:
+                self.add_image(
+                    "coco", image_id=i,
+                    path=os.path.join(image_dir, coco.imgs[i]['file_name']),
+                    width=coco.imgs[i]["width"],
+                    height=coco.imgs[i]["height"],
+                    annotations=annotations)
+                pass_cnt += 1
+            else: skip_cnt += 1
+        
+        time.sleep(0.5)
+        print('Pass image:', pass_cnt-1)
+        print('Skip image:', skip_cnt-1)
+        print()
+        
         if return_coco:
             return coco
 
@@ -122,10 +143,9 @@ class CocoDataset(Dataset):
 
         for annotation in annotations:
             x, y, w, h = annotation['bbox']
-            bboxes.append([y, x, y+h, x+w])
-            
             class_id = self.map_source_class_id(
                 "coco.{}".format(annotation['category_id']))
+            bboxes.append([y, x, y+h, x+w])
             class_ids.append(class_id)
             
         bboxes = np.array(bboxes)
