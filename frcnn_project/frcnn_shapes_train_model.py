@@ -9,7 +9,9 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-from frcnn import data, utils, visualize
+from frcnn import data
+from frcnn import visualize
+from frcnn.core import utils
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
@@ -26,7 +28,7 @@ LOG_ROOT = 'log_frcnn'
 #%%
 class ShapesConfig(ShapesConfig):
     NAME = 'shapes'
-    BACKBONE_NAME = 'resnet101'
+    BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 128
     IMAGE_MAX_DIM = 128
     RPN_ANCHOR_SCALES = [32,64,128]
@@ -73,7 +75,7 @@ model.print_summary()
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=13, trainable='+all')
+            epochs=5, trainable='+all')
 
 
 #%% Detection

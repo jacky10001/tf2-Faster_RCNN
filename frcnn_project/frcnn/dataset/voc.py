@@ -10,9 +10,8 @@ import time
 import numpy as np
 from tqdm import  tqdm
 
-# Import Faster RCNN
+from ..data import Dataset
 from ..config import Config
-from ..utils import Dataset
 from .voc_parser import VOC
 
 

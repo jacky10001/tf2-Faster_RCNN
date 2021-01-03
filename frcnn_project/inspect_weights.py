@@ -16,36 +16,42 @@ import matplotlib.pyplot as plt
 from frcnn.model import FasterRCNN
 from frcnn import visualize
 
+from frcnn.dataset.coco import CocoConfig
+from frcnn.dataset.coco import CocoDataset
+from frcnn.dataset.coco import evaluate_coco
+from frcnn.dataset.shapes import ShapesConfig
+from frcnn.dataset.shapes import ShapesDataset
 from frcnn.dataset.voc import VocConfig
+from frcnn.dataset.voc import VocDataset
+from frcnn.config import Config
 
 
 # Directory to save logs and trained model
 MODEL_DIR = 'log_frcnn'
+PROJECT_DIR = os.path.join(MODEL_DIR, 'voc20210102T1143')
 
-# Local path to trained weights file
-weights_path = os.path.join('log_frcnn', 'hand20201229T1628',
-                            'weights', 'faster_rcnn_resnet101_hand_0001.h5')
-# weights_path = os.path.join('log_frcnn', 'hand20201229T1628',
-#                             'weights', 'faster_rcnn_resnet101_hand_0060.h5')
 
-# Configurations
-class VocConfig(VocConfig):
-    NAME = 'hand'
-    BACKBONE_NAME = 'resnet101'
-    IMAGE_MIN_DIM = 512
-    IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [64,128,256]
-    
-    CLASSIF_FC_LAYERS_SIZE = 256
-    POOL_SIZE = 7
-    
-    IMAGES_PER_GPU = 2
-    LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 200
+dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
+# dataset_dir = r'D:\YJ\MyDatasets\IOPLAB\Jerry_happycells_help\cell_label_data'
 
-    NUM_CLASSES = 1 + 1  # BG + Hand 1 classes
 
-config = VocConfig()
+
+weights_path = os.path.join(PROJECT_DIR, #'weights',
+                            'faster_rcnn_best_202101021143.h5')
+
+
+
+config_dir = os.path.join(PROJECT_DIR,
+                          'config_202101021143.json')
+
+
+
+config = Config()
+config.load(config_dir)
+config.GPU_COUNT = 1
+config.IMAGES_PER_GPU = 1
+config.__init__()
+config.display()
 
 
 #%% Notebook Preferences

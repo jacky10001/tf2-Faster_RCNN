@@ -19,16 +19,14 @@ import numpy as np
 # Note: Edit PythonAPI/Makefile and replace "python" with "python3".
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-from pycocotools import mask as maskUtils
 
 import zipfile
 import urllib.request
 import shutil
 from tqdm import tqdm
 
-# Import Mask RCNN
+from ..data import Dataset
 from ..config import Config
-from ..utils import Dataset
 
 
 
@@ -58,7 +56,7 @@ class CocoConfig(Config):
 ############################################################
 
 class CocoDataset(Dataset):
-    def load_coco(self, dataset_dir, subset, year='2014', class_ids=None,
+    def load_coco(self, dataset_dir, subset, imsize, year='2014', class_ids=None,
                   class_map=None, return_coco=False, auto_download=False):
         """Load a subset of the COCO dataset.
         dataset_dir: The root directory of the COCO dataset.
@@ -108,9 +106,12 @@ class CocoDataset(Dataset):
                     imgIds=[i], catIds=class_ids, iscrowd=None))
             
             check_big = False
+            iw = coco.imgs[i]["width"]
+            ih = coco.imgs[i]["height"]
+            scale_f = (imsize / max(iw, ih)) ** 2
             for annotation in annotations:
                 _, _, w, h = annotation['bbox']
-                if w*h > 100*100:  # TODO - skip small object
+                if w*h*scale_f > 100*100:  # TODO - skip small object
                     check_big = True
             
             if check_big:

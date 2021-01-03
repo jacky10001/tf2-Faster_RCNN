@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers as KL
 
-from .. import utils
+from . import utils
 from .common import apply_box_deltas_graph
 from .common import clip_boxes_graph
 

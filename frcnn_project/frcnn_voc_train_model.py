@@ -15,7 +15,9 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-from frcnn import data, utils, visualize
+from frcnn import data
+from frcnn import visualize
+from frcnn.core import utils
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
@@ -42,7 +44,7 @@ class VocConfig(VocConfig):
     
     IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 200
+    STEPS_PER_EPOCH = 500
     
 config = VocConfig()
 # config.display()
@@ -81,14 +83,14 @@ model.plot_model()
 model.print_summary()
 
 # model_path = model.find_last()
-model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
-                          "faster_rcnn_best_202101021143.h5")
-model.load_weights(model_path, by_name=True)
+# model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
+#                           "faster_rcnn_best_202101021143.h5")
+# model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=100, trainable='+all')
+            epochs=60, trainable='+all')
 
 
 # model.train(dataset_train, dataset_val, 
@@ -112,8 +114,8 @@ model.print_summary()
 # Get path to saved weights
 # Either set a specific path or find last trained weights
 model_path = model.find_last()
-# model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
-#                           "faster_rcnn_best_202101021143.h5")
+model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
+                          "faster_rcnn_best_202101021143.h5")
 
 # Load trained weights
 model.load_weights(model_path, by_name=True)

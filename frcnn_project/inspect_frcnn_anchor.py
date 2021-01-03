@@ -9,11 +9,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from frcnn import utils, visualize
+from frcnn import visualize
+from frcnn.core import utils
 
 from frcnn.dataset.voc import VocConfig
-from frcnn.dataset.voc import VocDataset
-
 
 def get_ax(rows=1, cols=1, size=6):
     return plt.subplots(rows, cols, figsize=(size*cols, size*rows))[1]
@@ -28,18 +27,6 @@ config = VocConfig()
 config.display()
 
 dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
-
-
-#%% Dataset
-print('Load dataset')
-dataset = VocDataset()
-dataset.load_voc(dataset_dir, "trainval")
-print('Prepare VOC dataset')
-dataset.prepare()
-print("Image Count: {}".format(len(dataset.image_ids)))
-print("Class Count: {}".format(dataset.num_classes))
-for i, info in enumerate(dataset.class_info):
-    print("{:3}. {:50}".format(i, info['name']))
 
 
 #%%

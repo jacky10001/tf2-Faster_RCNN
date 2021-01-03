@@ -8,7 +8,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers as KL
 
-from .. import utils
+from . import utils
 from .common import detection_targets_graph
 from .common import refine_detections_graph
 from .common import norm_boxes_graph

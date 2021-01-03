@@ -10,4 +10,3 @@ opencv-python
 matplotlib
 scipy
 pycocotools-windows==2.0.0.2
-spyder

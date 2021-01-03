@@ -8,9 +8,9 @@
 import cv2
 import random
 import numpy as np
+from ..data import Dataset
 from ..config import Config
-from ..utils import Dataset
-from ..utils import non_max_suppression
+from ..core.utils import non_max_suppression
 
 
 

@@ -21,26 +21,26 @@ print('TF version:', tf.__version__)
 print('TF.KERAS version:', keras.__version__)
 tf.compat.v1.disable_eager_execution()
 
-from . import utils
+from . import myutils
 # from . import mycallback
 
-from .data import data_generator
+from .data import data_generator, resize_image
 
 from .backbone import BACKBONE
 
 from .core.roialign import ROIAlign
 from .core.proposal import ProposalLayer
 from .core.detect import (DetectionTargetLayer, DetectionLayer)
-
 from .core.common import (compose_image_meta,
                           mold_image,
                           parse_image_meta_graph,
                           norm_boxes_graph)
-
 from .core.losses import (rpn_class_loss_graph,
                           rpn_bbox_loss_graph,
                           frcnn_class_loss_graph,
                           frcnn_bbox_loss_graph)
+from .core.utils import (norm_boxes, denorm_boxes,
+                         generate_normal_anchors)
 
 
 
@@ -222,7 +222,7 @@ class FasterRCNN():
         config: A Sub-class of the Config class
         model_dir: Directory to save training logs and trained weights
         """
-        assert mode in ['training', 'retrain', 'inference']
+        assert mode in ['training', 'inference']
         self.mode = mode
         self.config = config
         self.model_dir = model_dir
@@ -270,9 +270,17 @@ class FasterRCNN():
             # Normalize coordinates
             gt_boxes = KL.Lambda(lambda x: norm_boxes_graph(
                 x, K.shape(input_image)[1:3]))(input_gt_boxes)
+            # Anchors
+            anchors = self.get_anchors(config.IMAGE_SHAPE)
+            # Duplicate across the batch dimension because Keras requires it
+            # can this be optimized to avoid duplicating the anchors?
+            anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
+            # A hack to get around Keras's bad support for constants
+            anchors = AnchorsLayer(name="anchors")([anchors,input_image])
         elif mode == "inference":
             # Anchors in normalized coordinates
             input_anchors = KL.Input(shape=[None, 4], name="input_anchors")
+            anchors = input_anchors
             
         # TODO - Setting Backbone network 
         backbone = BACKBONE[config.BACKBONE_NAME]['net'](
@@ -280,17 +288,6 @@ class FasterRCNN():
             input_tensor=input_image,
         )        
         features = backbone.outputs[0]
-
-        # Anchors
-        if mode == "training":
-            anchors = self.get_anchors(config.IMAGE_SHAPE)
-            # Duplicate across the batch dimension because Keras requires it
-            # can this be optimized to avoid duplicating the anchors?
-            anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
-            # A hack to get around Keras's bad support for constants
-            anchors = AnchorsLayer(name="anchors")([anchors,input_image])
-        else:
-            anchors = input_anchors
 
         # RPN Model
         rpn = build_rpn_model(config.RPN_ANCHOR_STRIDE, 
@@ -457,7 +454,7 @@ class FasterRCNN():
             if trainable and verbose > 0:
                 log("{}{:20}   ({})".format(" " * indent, layer.name,
                                             layer.__class__.__name__))
-
+    
     def compile(self, learning_rate, momentum): #TODO
         """Gets the model ready for training. Adds losses, regularization, and
         metrics. Then calls the Keras compile() function.
@@ -578,10 +575,10 @@ class FasterRCNN():
         # Callbacks
         callbacks_list = [
             callbacks.TensorBoard(
-                log_dir=self.TB_DIR, histogram_freq=0, write_graph=True, write_images=False),
+                log_dir=self.TB_DIR, histogram_freq=1, write_graph=True, write_images=False),
             
-            callbacks.ModelCheckpoint(
-                self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=False),
+            # callbacks.ModelCheckpoint(
+            #     self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=False),
             
             callbacks.ModelCheckpoint(
                 best_weights_path, verbose=0, save_weights_only=True, save_best_only=True),
@@ -601,6 +598,7 @@ class FasterRCNN():
         layers = BACKBONE[backbone]['trainable_layers'].get(
             trainable, BACKBONE[backbone]['trainable_layers']["+head"]) 
         self.set_trainable(layers)
+        myutils.show_params(self.keras_model)
 
         # Train
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
@@ -636,7 +634,7 @@ class FasterRCNN():
         for image in images:
             # Resize image
             # move resizing to mold_image()
-            molded_image, window, scale, padding, crop = utils.resize_image(
+            molded_image, window, scale, padding, crop = resize_image(
                 image,
                 min_dim=self.config.IMAGE_MIN_DIM,
                 min_scale=self.config.IMAGE_MIN_SCALE,
@@ -686,7 +684,7 @@ class FasterRCNN():
 
         # Translate normalized coordinates in the resized image to pixel
         # coordinates in the original image before resizing
-        window = utils.norm_boxes(window, image_shape[:2])
+        window = norm_boxes(window, image_shape[:2])
         wy1, wx1, wy2, wx2 = window
         shift = np.array([wy1, wx1, wy1, wx1])
         wh = wy2 - wy1  # window height
@@ -695,7 +693,7 @@ class FasterRCNN():
         # Convert boxes to normalized coordinates on the window
         boxes = np.divide(boxes - shift, scale)
         # Convert boxes to pixel coordinates on the original image
-        boxes = utils.denorm_boxes(boxes, original_image_shape[:2])
+        boxes = denorm_boxes(boxes, original_image_shape[:2])
 
         # Filter out detections with zero area. Happens in early training when
         # network weights are still random
@@ -830,7 +828,7 @@ class FasterRCNN():
             self._anchor_cache = {}
         if not tuple(image_shape) in self._anchor_cache:
             # Generate Anchors
-            a = utils.generate_normal_anchors(
+            a = generate_normal_anchors(
                 self.config.RPN_ANCHOR_SCALES,
                 self.config.RPN_ANCHOR_RATIOS,
                 backbone_featuremap_shapes,
@@ -841,7 +839,7 @@ class FasterRCNN():
             # Remove this after the notebook are refactored to not use it
             self.anchors = a
             # Normalize coordinates
-            self._anchor_cache[tuple(image_shape)] = utils.norm_boxes(a, image_shape[:2])
+            self._anchor_cache[tuple(image_shape)] = norm_boxes(a, image_shape[:2])
         return self._anchor_cache[tuple(image_shape)]
 
     def ancestor(self, tensor, name, checked=None):
@@ -951,8 +949,7 @@ class FasterRCNN():
         elif self.mode == "inference":
             filepath = filepath.format(self.config.BACKBONE_NAME.lower(), 'det')
         print("\nPlot model to {}\n".format(filepath))
-        keras.utils.plot_model(
-            self.keras_model, to_file=filepath, show_shapes=True)
+        keras.utils.plot_model( self.keras_model, to_file=filepath, show_shapes=True)
     
     def print_summary(self):
         filepath = os.path.join(self.model_dir, "faster_rcnn_{}_{}.txt")

@@ -10,7 +10,8 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-from frcnn import data, utils, visualize
+from frcnn import data, visualize
+from frcnn.core import utils
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN

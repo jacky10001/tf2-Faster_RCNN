@@ -15,8 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches,  lines
 import IPython.display
 
-# Import Mask RCNN
-from . import utils
+from .core import utils
 
 
 ############################################################

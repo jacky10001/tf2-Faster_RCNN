@@ -9,7 +9,9 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-from frcnn import data, utils, visualize
+from frcnn import data
+from frcnn import visualize
+from frcnn.core import utils
 from frcnn.core import common
 from frcnn.model import log
 from frcnn.model import FasterRCNN
@@ -26,18 +28,17 @@ LOG_ROOT = 'log_frcnn'
 
 #%%
 class CocoConfig(CocoConfig):
-    NAME = 'coco'
     BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [128,256,512]
+    RPN_ANCHOR_SCALES = [64,128,256]
     
     CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0003
-    STEPS_PER_EPOCH = 250
+    STEPS_PER_EPOCH = 1000
 
 config = CocoConfig()
 # config.display()
@@ -50,31 +51,35 @@ download = True
 
 # Training dataset
 dataset_train = CocoDataset()
-dataset_train.load_coco(dataset_dir, "train", year=year, auto_download=download)
+dataset_train.load_coco(dataset_dir, "train", config.IMAGE_MAX_DIM,
+                        year=year, auto_download=download)
 if year in '2014':
-    dataset_train.load_coco(dataset_dir, "valminusminival", year=year, auto_download=download)
+    dataset_train.load_coco(dataset_dir, "valminusminival", config.IMAGE_MAX_DIM,
+                            year=year, auto_download=download)
 dataset_train.prepare()
 
 # Validation dataset
 dataset_val = CocoDataset()
 val_type = "val" if year in '2017' else "minival"
-dataset_val.load_coco(dataset_dir, val_type, year=year, auto_download=download)
+dataset_val.load_coco(dataset_dir, val_type, config.IMAGE_MAX_DIM,
+                      year=year, auto_download=download)
 dataset_val.prepare()
 
 
 # Load and display random samples
-# class CheckConfig(CocoConfig):
-#     GPU_COUNT = 1
-#     IMAGES_PER_GPU = 1
-# check_config = CheckConfig()
+class CheckConfig(CocoConfig):
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
+check_config = CheckConfig()
     
 # image_ids = np.random.choice(dataset_train.image_ids, 1)
-# for image_id in image_ids:
-#     original_image, image_meta, gt_class_id, gt_bbox =\
-#         data.load_image_gt(dataset_train, check_config, image_id)
+image_ids = dataset_train.image_ids
+for image_id in image_ids:
+    original_image, image_meta, gt_class_id, gt_bbox =\
+        data.load_image_gt(dataset_train, check_config, image_id)
         
-#     visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-#                                 dataset_train.class_names, ax=get_ax())
+    # visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+    #                             dataset_train.class_names, ax=get_ax())
 
 
 #%% Create Model
@@ -88,7 +93,7 @@ model.load_weights(model_path, by_name=True)
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=160, trainable='+5')
+            epochs=80, trainable='+all')
 
 
 #%% Detection
@@ -139,7 +144,8 @@ print(AP)
 # Running on 10 images. Increase for better accuracy.
 
 limit = 500
-coco = dataset_val.load_coco(dataset_dir, val_type, year=year, return_coco=True, auto_download=download)
+coco = dataset_val.load_coco(dataset_dir, val_type, config.IMAGE_MAX_DIM,
+                             year=year, return_coco=True, auto_download=download)
 dataset_val.prepare()
 evaluate_coco(model, dataset_val, coco, "bbox", limit=limit)
 

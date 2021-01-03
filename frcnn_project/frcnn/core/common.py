@@ -8,7 +8,7 @@
 import numpy as np
 import tensorflow as tf
 
-from .. import utils
+from . import utils
 
 
 ############################################################
