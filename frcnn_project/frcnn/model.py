@@ -381,7 +381,7 @@ class FasterRCNN():
                              name='faster_rcnn')
         return model
 
-    def find_last(self):
+    def find_last(self, folder="weights"):
         """Finds the last checkpoint file of the last trained model in the
         model directory.
         Returns:
@@ -400,7 +400,7 @@ class FasterRCNN():
                 "Could not find model directory under {}".format(self.model_dir))
             
         # Pick weights directory
-        dir_name = os.path.join(self.model_dir, dir_names[-1], "weights")
+        dir_name = os.path.join(self.model_dir, dir_names[-1], folder)
         checkpoints = next(os.walk(dir_name))[2]
         # Get backbone name as key
         model_key = "faster_rcnn_{}".format(self.config.BACKBONE_NAME.lower())
@@ -529,12 +529,13 @@ class FasterRCNN():
                 self.set_log_flag = True
 
         # Directory for training logs
-        self.log_dir = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
+        self.LOG_DIR = os.path.join(self.model_dir, "{}{:%Y%m%dT%H%M}".format(
             self.config.NAME.lower(), now))
 
         # Create log_dir if it does not exist
-        self.CKPT_DIR = os.path.join(self.log_dir,'weights')
-        self.TB_DIR = os.path.join(self.log_dir,'tensorboard')
+        self.BEST_DIR = os.path.join(self.LOG_DIR,'best')
+        self.CKPT_DIR = os.path.join(self.LOG_DIR,'weights')
+        self.TB_DIR = os.path.join(self.LOG_DIR,'tensorboard')
 
         # Path to save after each epoch. Include placeholders that get filled by Keras.
         self.checkpoint_path = os.path.join(
@@ -546,36 +547,48 @@ class FasterRCNN():
     def train(self, train_dataset, val_dataset, learning_rate, epochs, trainable="+head"): #TODO
         assert self.mode == "training", "Create model in training mode."
         
-        # Make folder
-        if not os.path.exists(self.log_dir):
-            print('Create New The Directory of Training Log !!!!!')
-            os.makedirs(self.CKPT_DIR, exist_ok=True)
-            os.makedirs(self.TB_DIR, exist_ok=True)
-        
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
                                          batch_size=self.config.BATCH_SIZE)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
                                        batch_size=self.config.BATCH_SIZE)
         
+        # Select trainable layers
+        backbone = self.config.BACKBONE_NAME.lower()
+        if trainable not in BACKBONE[backbone]['trainable_layers'].keys():
+            print('\n   The trainable key \'{}\' not exist.'.format(trainable))
+            print('   It will use defualt key \'+head\'\n')
+        else:
+            print('\n   The trainable key is \'{}\'\n'.format(trainable))
+        layers = BACKBONE[backbone]['trainable_layers'].get(
+            trainable, BACKBONE[backbone]['trainable_layers']["+head"]) 
+        self.set_trainable(layers)
+        myutils.show_params(self.keras_model)
+        
+        # Make folder
+        if not os.path.exists(self.LOG_DIR):
+            print('Create New The Directory of Training Log !!!!!')
+            os.makedirs(self.BEST_DIR, exist_ok=True)
+            os.makedirs(self.CKPT_DIR, exist_ok=True)
+            os.makedirs(self.TB_DIR, exist_ok=True)
+        
         # Sets log directory
         now = datetime.datetime.now()
         history_path = os.path.join(
-            self.log_dir, "train_history_{:%Y%m%d%H%M}.csv".format(now))
+            self.LOG_DIR, "train_history_{:%Y%m%d%H%M}.csv".format(now))
         
         # Save config file
         config_path = os.path.join(
-            self.log_dir, "config_{:%Y%m%d%H%M}.json".format(now))
+            self.LOG_DIR, "config_{:%Y%m%d%H%M}.json".format(now))
         self.config.save(config_path)
         
         # Save best weights
         best_weights_path = os.path.join(
-            self.log_dir, "faster_rcnn_best_{:%Y%m%d%H%M}.h5".format(now))
+            self.BEST_DIR, "faster_rcnn_{}_best_{:%Y%m%d%H%M}.h5".format(backbone, now))
         
         # Callbacks
         callbacks_list = [
-            callbacks.TensorBoard(
-                log_dir=self.TB_DIR, histogram_freq=1, write_graph=True, write_images=False),
+            # callbacks.TensorBoard(log_dir=self.TB_DIR),
             
             # callbacks.ModelCheckpoint(
             #     self.checkpoint_path, verbose=0, save_weights_only=True, save_best_only=False),
@@ -587,22 +600,11 @@ class FasterRCNN():
             
             # mycallback.send_train_peogress_to_pushbullet(set_name='frcnn2', send_freq=5),
         ]
-        
-        # Select trainable layers
-        backbone = self.config.BACKBONE_NAME
-        if trainable not in BACKBONE[backbone]['trainable_layers'].keys():
-            print('\n   The trainable key \'{}\' not exist.'.format(trainable))
-            print('   It will use defualt key \'+head\'\n')
-        else:
-            print('\n   The trainable key is \'{}\'\n'.format(trainable))
-        layers = BACKBONE[backbone]['trainable_layers'].get(
-            trainable, BACKBONE[backbone]['trainable_layers']["+head"]) 
-        self.set_trainable(layers)
-        myutils.show_params(self.keras_model)
 
         # Train
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
         log("Checkpoint Path: {}".format(self.checkpoint_path))
+        log("Best Checkpoint: {}".format(best_weights_path))
         self.compile(learning_rate, self.config.LEARNING_MOMENTUM)
         
         self.keras_model.fit(

@@ -34,12 +34,12 @@ class BccdConfig(VocConfig):
     IMAGE_MAX_DIM = 512
     RPN_ANCHOR_SCALES = [64,128,256]
     
-    CLASSIF_FC_LAYERS_SIZE = 64
+    CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
     LEARNING_RATE = 0.0001
-    STEPS_PER_EPOCH = 200
+    STEPS_PER_EPOCH = 500
 
     NUM_CLASSES = 1 + 3  # BG + BCCD 3 classes
     
@@ -72,20 +72,16 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
+# model.plot_model()
+# model.print_summary()
 
-model_path = model.find_last()
-model.load_weights(model_path, by_name=True)
+# model_path = model.find_last()
+# model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=100, trainable='+all')
-
-# model.train(dataset_train, dataset_val, 
-#             learning_rate=config.LEARNING_RATE, 
-#             epochs=60, trainable='+frcnn')
+            epochs=50, trainable='+all')
 
 
 #%% Detection
@@ -97,16 +93,12 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
+# model.plot_model()
+# model.print_summary()
 
-
-# Get path to saved weights
-# model_path = os.path.join("log_frcnn", "voc20201227T0101", "weights",
-#                           "faster_rcnn_voc_0044.h5")
-model_path = model.find_last()
 
 # Load trained weights
+model_path = model.find_last("best")
 model.load_weights(model_path, by_name=True)
 
 

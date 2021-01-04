@@ -28,6 +28,7 @@ The code can run on tf2.3
 - [x] Head layer reduce weights  
 - [x] Inspect training results (model output and weights)
 - [ ] Training results
+- [ ] Data augmentation
 
 
 ## Tips   
@@ -52,7 +53,7 @@ mAP: 0.49 (4952 samples)
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "VOC dataset")  
 
 BCCD dataset  
-mAP: 0.72 (72 samples)  
+mAP: 0.74 (72 samples)  
 ![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "BCCD dataset")  
 
 Custom dataset (Digital Holographic Microscopy)  

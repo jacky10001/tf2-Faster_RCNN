@@ -5,6 +5,7 @@
 @date: Fri Dec 18 03:25:13 2020
 """
 
+import os
 import random
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,7 +29,10 @@ LOG_ROOT = 'log_frcnn'
 #%%
 class ShapesConfig(ShapesConfig):
     NAME = 'shapes'
+    # BACKBONE_NAME = 'vgg16'
     BACKBONE_NAME = 'resnet50'
+    # BACKBONE_NAME = 'resnet101'
+    # BACKBONE_NAME = 'mobilenetv2'
     IMAGE_MIN_DIM = 128
     IMAGE_MAX_DIM = 128
     RPN_ANCHOR_SCALES = [32,64,128]
@@ -38,7 +42,7 @@ class ShapesConfig(ShapesConfig):
     
     IMAGES_PER_GPU = 5
     LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 250
+    STEPS_PER_EPOCH = 200
 
 config = ShapesConfig()
 # config.display()
@@ -67,15 +71,15 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
+# model.plot_model()
+# model.print_summary()
 
 # model_path = model.find_last()
 # model.load_weights(model_path, by_name=True)
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=5, trainable='+all')
+            epochs=10, trainable='+all')
 
 
 #%% Detection
@@ -87,14 +91,13 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
-
-model_path = model.find_last()
-# model_path = os.path.join("log_frcnn", "shapes20201219T1642",
-#                           "weights", "faster_rcnn_shapes_0001.h5")
+# model.plot_model()
+# model.print_summary()
 
 # Load trained weights
+model_path = model.find_last("best")
+# model_path = os.path.join("log_frcnn", "shapes20201219T1642", "weights",
+#                           "faster_rcnn_shapes_0001.h5")
 model.load_weights(model_path, by_name=True)
 
 

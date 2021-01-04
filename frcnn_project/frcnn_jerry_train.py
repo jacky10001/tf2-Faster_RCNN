@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-train voc 2007 data
-
-tip:
-tensorboard --logdir log_frcnn\???\tensorboard
 
 @author: Jacky Gao
-@date: Fri Dec 18 04:39:21 2020
+@date: Wed Dec 23 04:55:44 2020
 """
 
 import os
@@ -32,30 +28,28 @@ LOG_ROOT = 'log_frcnn'
 
 
 #%% Configurations
-class VocConfig(VocConfig):
-    NAME = 'voc'
-    BACKBONE_NAME = 'resnet101'
+class JerryConfig(VocConfig):
+    NAME = 'jerry'
+    BACKBONE_NAME = 'resnet50'
     IMAGE_MIN_DIM = 512
     IMAGE_MAX_DIM = 512
-    RPN_ANCHOR_SCALES = [128,256,512]
+    RPN_ANCHOR_SCALES = [64,128,256]
     
-    CLASSIF_FC_LAYERS_SIZE = 512
+    CLASSIF_FC_LAYERS_SIZE = 256
     POOL_SIZE = 7
     
     IMAGES_PER_GPU = 2
-    LEARNING_RATE = 0.0005
-    STEPS_PER_EPOCH = 500
+    LEARNING_RATE = 0.0001
+    STEPS_PER_EPOCH = 100
+    NUM_CLASSES = 1 + 2 # bg + 2 (living dead)
+
     
-config = VocConfig()
-# config.display()
-# config.save('cfg.json')
-# config.display()
-# config.load('cfg.json')
+config = JerryConfig()
 # config.display()
 
 
 #%% Dataset
-dataset_dir = r'D:\YJ\MyDatasets\VOC\voc2007'
+dataset_dir = r'D:\YJ\MyDatasets\IOPLAB\Jerry_happycells_help\cell_label_data'
 
 # Training dataset
 dataset_train = VocDataset()
@@ -79,27 +73,20 @@ dataset_val.prepare()
 #%% Create Model
 # Create model in training mode
 model = FasterRCNN(mode="training", config=config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
+# model.plot_model()
+# model.print_summary()
 
-# model_path = model.find_last()
-# model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
-#                           "faster_rcnn_best_202101021143.h5")
-# model.load_weights(model_path, by_name=True)
+model_path = model.find_last("best")
+model.load_weights(model_path, by_name=True)
 
 
 model.train(dataset_train, dataset_val, 
             learning_rate=config.LEARNING_RATE, 
-            epochs=60, trainable='+all')
-
-
-# model.train(dataset_train, dataset_val, 
-#             learning_rate=config.LEARNING_RATE, 
-#             epochs=50, trainable='+head')
+            epochs=50, trainable='+all')
 
 
 #%% Detection
-class InferenceConfig(VocConfig):
+class InferenceConfig(JerryConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
 
@@ -107,17 +94,12 @@ inference_config = InferenceConfig()
 
 # Recreate the model in inference mode
 model = FasterRCNN(mode="inference", config=inference_config, model_dir=LOG_ROOT)
-model.plot_model()
-model.print_summary()
+# model.plot_model()
+# model.print_summary()
 
-
-# Get path to saved weights
-# Either set a specific path or find last trained weights
-model_path = model.find_last()
-model_path = os.path.join("log_frcnn", "voc20210102T1143", #"weights",
-                          "faster_rcnn_best_202101021143.h5")
 
 # Load trained weights
+model_path = model.find_last("best")
 model.load_weights(model_path, by_name=True)
 
 
@@ -131,8 +113,8 @@ log("image_meta", image_meta)
 log("gt_class_id", gt_class_id)
 log("gt_bbox", gt_bbox)
 
-visualize.display_instances(original_image, gt_bbox, gt_class_id, 
-                            dataset_train.class_names, ax=get_ax())
+# visualize.display_instances(original_image, gt_bbox, gt_class_id, 
+#                             dataset_train.class_names, ax=get_ax())
 
 results = model.detect([original_image], verbose=1)
 
