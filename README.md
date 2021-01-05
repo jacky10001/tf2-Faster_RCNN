@@ -3,7 +3,7 @@ This repo modify [matterport/Mask_RCNN](https://github.com/matterport/Mask_RCNN)
 
 
 ## Architecture
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/struct.png "Architecture")  
+![image](./images/struct.png "Architecture")  
 
 
 ## setup
@@ -46,18 +46,18 @@ The code can run on tf2.3
 ## Results  
 Shapes dataset  
 mAP: 0.95 (100 samples)  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-0.png "Shapes dataset")  
+![image](./images/image-0.png "Shapes dataset")  
 
 VOC dataset  
 mAP: 0.49 (4952 samples)  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-1.png "VOC dataset")  
+![image](./images/image-1.png "VOC dataset")  
 
 BCCD dataset  
 mAP: 0.74 (72 samples)  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-2.png "BCCD dataset")  
+![image](./images/image-2.png "BCCD dataset")  
 
 Custom dataset (Digital Holographic Microscopy)  
-![alt text](https://github.com/jacky10001/Faster_RCNN-tf2/blob/main/images/image-3.png "Custom dataset")  
+![image](./images/image-3.png "Custom dataset")  
 
 
 ## Refer
